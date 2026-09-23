@@ -6,7 +6,13 @@ with the player's own original game files. The plan and the rulings every job fo
 
 ## Run it
 
-Nothing to run yet. Phase 2 adds the build script and phase 3 the page.
+The page (phase 3, the player's own files) runs with a small stand-in reader until the engine
+is built; see [docs/GAME-FILES.md](docs/GAME-FILES.md).
+
+```
+py -3.10 scripts/build_reader.py          # needs the Emscripten SDK
+py -3.10 scripts/serve.py --port 8000
+```
 
 ## Test it
 

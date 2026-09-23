@@ -1,0 +1,117 @@
+:root {
+  --bg: #15110d;
+  --panel: #231c15;
+  --edge: #4a3a28;
+  --text: #e8dcc6;
+  --dim: #a89880;
+  --gold: #e0a93b;
+  --good: #7fbf6a;
+  --bad: #e0664f;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+main {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+h1 {
+  color: var(--gold);
+  font-size: 1.9rem;
+  margin: 0 0 0.25rem;
+  letter-spacing: 0.02em;
+}
+
+h2 { font-size: 1.2rem; margin: 0 0 0.75rem; }
+
+.lede { color: var(--dim); margin: 0 0 1.5rem; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.panel[hidden] { display: none; }
+
+.buttons { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1rem 0 0.5rem; }
+
+button, .button {
+  font: inherit;
+  font-weight: 600;
+  border: 1px solid var(--gold);
+  border-radius: 6px;
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+  background: var(--gold);
+  color: #1b140c;
+}
+
+button.quiet, .button.quiet { background: transparent; color: var(--gold); }
+button.danger { background: transparent; color: var(--bad); border-color: var(--bad); }
+button:disabled { opacity: 0.5; cursor: wait; }
+
+/* The real file inputs stay in the page (so a test can hand them files) but out of sight. */
+.picker { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+
+.promise { color: var(--dim); font-size: 0.9rem; margin: 0.5rem 0 0; }
+
+details.guide { margin-top: 1rem; }
+details.guide summary { cursor: pointer; color: var(--gold); }
+.guide dl { margin: 0.75rem 0 0; }
+.guide dt { font-weight: 600; margin-top: 0.6rem; }
+.guide dd { margin: 0.1rem 0 0 0; color: var(--dim); }
+
+code {
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 0.88em;
+  background: #120e0a;
+  border-radius: 3px;
+  padding: 0.05rem 0.3rem;
+  color: var(--text);
+}
+
+.status { font-weight: 600; margin: 0 0 0.5rem; }
+.status.good { color: var(--good); }
+.status.bad { color: var(--bad); }
+
+ul.files {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  columns: 2;
+  column-gap: 2rem;
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 0.88rem;
+}
+ul.files li { break-inside: avoid; padding: 0.05rem 0; }
+ul.files li.missing { color: var(--bad); }
+ul.files li.missing::before { content: "✗ "; }
+ul.files li.found::before { content: "✓ "; color: var(--good); }
+
+pre.engine-view {
+  background: #0d0a07;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  overflow-x: auto;
+  margin: 0.5rem 0 0;
+}
+
+.progress { color: var(--dim); margin: 0.5rem 0 0; }
+
+footer { color: var(--dim); font-size: 0.8rem; margin-top: 2rem; }
+footer a { color: var(--gold); }

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KeeperFX in the browser</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <h1>KeeperFX</h1>
+  <p class="lede">Dungeon Keeper, on the open-source KeeperFX engine, in your browser.
+    It plays with your own copy of the original game.</p>
+
+  <!-- Shown while the stored files are being read back. -->
+  <section id="loading" class="panel">
+    <p class="progress">Looking for your game files…</p>
+  </section>
+
+  <!-- First visit, or after "forget my files": ask for the Dungeon Keeper folder. -->
+  <section id="ask" class="panel" hidden>
+    <h2>Where is your Dungeon Keeper?</h2>
+    <p>KeeperFX needs a few files from the original game. Choose the folder you installed
+      Dungeon Keeper (or Dungeon Keeper Gold) into, or a <code>.zip</code> of that folder.</p>
+    <div class="buttons">
+      <label class="button" for="pick-folder">Choose folder…</label>
+      <label class="button quiet" for="pick-zip">Choose a .zip…</label>
+    </div>
+    <input id="pick-folder" class="picker" type="file" webkitdirectory multiple>
+    <input id="pick-zip" class="picker" type="file" accept=".zip,application/zip">
+    <p class="promise">Your files stay on this computer. They are checked and kept in this
+      browser's own storage; nothing is uploaded, ever.</p>
+
+    <details class="guide">
+      <summary>Where do I find it?</summary>
+      <dl>
+        <dt>GOG</dt>
+        <dd><code>C:\GOG Games\Dungeon Keeper Gold</code>, or with GOG Galaxy
+          <code>C:\Program Files (x86)\GOG Galaxy\Games\Dungeon Keeper Gold</code>.
+          In Galaxy: the game's settings button → Manage installation → Show folder.</dd>
+        <dt>Steam</dt>
+        <dd><code>C:\Program Files (x86)\Steam\steamapps\common\Dungeon Keeper</code>.
+          In Steam: right-click the game → Manage → Browse local files.</dd>
+        <dt>EA app / Origin</dt>
+        <dd><code>C:\Program Files\EA Games\Dungeon Keeper</code>, or
+          <code>C:\Program Files (x86)\Origin Games\Dungeon Keeper</code>.</dd>
+        <dt>CD</dt>
+        <dd>The <code>KEEPER</code> folder on the disc.</dd>
+      </dl>
+      <p class="promise">Choosing the outer folder is fine: the page looks inside it for the
+        <code>data</code> and <code>sound</code> folders it needs.</p>
+    </details>
+  </section>
+
+  <!-- After a pick that lacks required files. -->
+  <section id="missing" class="panel" hidden>
+    <p class="status bad" id="missing-status"></p>
+    <p id="missing-lead">That folder is missing these files, so nothing was kept:</p>
+    <ul class="files" id="missing-list"></ul>
+    <p class="promise" id="missing-hint">Check you chose the folder Dungeon Keeper is installed
+      in, not a shortcut to it. A demo or "Deeper Dungeons" on its own does not have them.</p>
+    <div class="buttons">
+      <button id="try-again">Choose again</button>
+    </div>
+  </section>
+
+  <!-- Files stored: what the engine will see. -->
+  <section id="ready" class="panel" hidden>
+    <p class="status good" id="ready-status"></p>
+    <ul class="files" id="ready-list"></ul>
+    <h2 style="margin-top:1.25rem">What the engine sees</h2>
+    <p class="promise">Listed by a small compiled reader, from the folders the engine reads.</p>
+    <pre class="engine-view" id="engine-view"></pre>
+    <div class="buttons">
+      <button class="danger" id="forget">Forget my files</button>
+    </div>
+  </section>
+
+  <footer>
+    KeeperFX is free software under the GNU GPL v2:
+    <a href="https://github.com/dkfans/keeperfx">source code</a>.
+    Dungeon Keeper is © Electronic Arts; you need your own copy.
+  </footer>
+</main>
+<script src="reader.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -23,6 +23,15 @@ class RepoTest(unittest.TestCase):
         for ruling in ("Compile the real engine", "page as actually served", "One heavy engine build at a time"):
             self.assertIn(ruling, plan)
 
+    def test_vendor_clone_is_ignored(self):
+        # The pinned upstream clone lives in vendor/ and must never be committed.
+        out = subprocess.run(["git", "check-ignore", "-q", "vendor/keeperfx/README.md"], cwd=ROOT)
+        self.assertEqual(out.returncode, 0, "vendor/ must be gitignored")
+
+    def test_porting_notes_record_the_pin(self):
+        notes = (ROOT / "docs" / "PORTING-NOTES.md").read_text(encoding="utf-8")
+        self.assertRegex(notes, r"`[0-9a-f]{40}`", "the pinned keeperfx commit must be recorded")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,8 @@
+build/
+site/*.wasm
+site/*.data
+emsdk/
+gamedata/
+__pycache__/
+*.log
+.env

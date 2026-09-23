@@ -1,0 +1,7 @@
+{
+  "repo": "keeperfx-browser",
+  "check": "py -3.10 -m unittest discover -s tests -v",
+  "suite": "py -3.10 -m unittest discover -s tests -v",
+  "main": "master",
+  "protect": ["vendor/", "build/", "emsdk/", "gamedata/", "__pycache__/"]
+}

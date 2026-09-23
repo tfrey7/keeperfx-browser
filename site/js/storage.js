@@ -1,15 +1,15 @@
 // Keeps the player's game files in this browser, inside an Emscripten module's filesystem.
 //
 // The files live in IndexedDB through Emscripten's IDBFS, mounted at STORE. The engine reads its
-// game directory ROOT, whose data/, sound/ and music/ will also hold KeeperFX's own files, so the
-// player's files are not mounted over those folders: each is linked into place instead
-// (ROOT/data/bluepal.dat -> STORE/data/bluepal.dat). The engine build mounts the same way.
+// game directory ROOT, whose data/, sound/, music/ and ldata/ will also hold KeeperFX's own
+// files, so the player's files are not mounted over those folders: each is linked into place
+// instead (ROOT/data/bluepal.dat -> STORE/data/bluepal.dat). The engine build mounts the same way.
 
 import { ALL } from "./manifest.js";
 
 export const ROOT = "/keeperfx";
 export const STORE = `${ROOT}/player`;
-const FOLDERS = ["data", "sound", "music"];
+const FOLDERS = ["data", "sound", "music", "ldata"];
 
 function exists(FS, path) {
   return FS.analyzePath(path).exists;

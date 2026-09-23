@@ -239,8 +239,9 @@ constructed.
     `scrshots`, `creatrs`, `campgns`, `levels`, `multiplayer` (`config.c:1280-1395`).
   - `INSTALL_PATH` in `keeperfx.cfg` moves only `ldata`, `levels`, campaign levels and media.
   
-  → The web build **`chdir`s to a game root such as `/kfx` before `main`** (via `callMain`
-  arguments or `preRun`).
+  → The web build **`chdir`s to the game root `/keeperfx` before `main`** (via `callMain`
+  arguments or `preRun`). That is the folder the game-files page already fills
+  ([GAME-FILES.md](GAME-FILES.md)).
 - **Case sensitivity.** `bflib_fileio.c:46-116` matches only the *last* path component
   case-insensitively, and only for `LbFileOpen`/`LbFileExists`. Many opens bypass it: `fopen` in
   6 files, `unzOpen`, `MIX_LoadAudio`, `luaL_dofile`, `avformat_open_input`.
@@ -387,6 +388,10 @@ ldata/   optional (movies; stubbed at first)
   intromix.smk  bullfrog.smk  ea.smk  drag.smk                     <- presence in the originals unverified
 ```
 
+The page (`site/js/manifest.js`) takes exactly this list: the `data/` and `sound/` files as
+required, the rest as optional extras. It looks for the movies in any folder, since where each
+edition keeps them is unverified.
+
 - The engine's hard requirements are in `src/vidmode_data.cpp:103-108` and `vidmode.c:129`.
 - The page follows the launcher's rule: **every `data/` and `sound/` file listed as "required" by
   the launcher must be present.** A folder where only the six engine-required files are present
@@ -439,8 +444,10 @@ levels, `lang` text built into `fxdata/gtext_*.dat`, the graphics (`FXGraphics`:
 
 - **Storage.** The data is small: the originals are under 1 MB, the KeeperFX pack about 400 MB
   unpacked. It all lives in **IDBFS**:
-  - `/kfx`, the game root: the originals plus the KeeperFX pack, with `data/` writable
-  - `/kfx/save`
+  - `/keeperfx`, the game root: the originals plus the KeeperFX pack, with `data/` writable
+    - `/keeperfx/player` holds the originals; the page links each one into `data/`, `sound/`,
+      `music/` or `ldata/` ([GAME-FILES.md](GAME-FILES.md))
+  - `/keeperfx/save`
   - `/libsdl`, SDL's pref path
 - **Before `main`.** `FS.syncfs(true)` runs under `addRunDependency`, and the module is created
   with `noInitialRun`, then `callMain` (OpenRCT2).

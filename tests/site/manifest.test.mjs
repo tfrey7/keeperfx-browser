@@ -8,12 +8,24 @@ import { listZip, readZipEntry } from "../../site/js/unzip.js";
 const upper = (names, root) => names.map((n) => `${root}/${n.toUpperCase()}`);
 
 test("a GOG copy in upper case matches every file, music from the root", () => {
-  const music = OPTIONAL.map((n) => `Dungeon Keeper Gold/${n.split("/")[1].toUpperCase()}`);
-  const { found, missing, missingOptional } = matchFiles([...upper(REQUIRED, "Dungeon Keeper Gold"), ...music]);
+  const extras = OPTIONAL.map((n) =>
+    n.startsWith("data/") ? `Dungeon Keeper Gold/${n.toUpperCase()}` : `Dungeon Keeper Gold/${n.split("/")[1].toUpperCase()}`);
+  const { found, missing, missingOptional } = matchFiles([...upper(REQUIRED, "Dungeon Keeper Gold"), ...extras]);
   assert.deepEqual(missing, []);
   assert.deepEqual(missingOptional, []);
   assert.equal(found.get("data/bluepal.dat"), "Dungeon Keeper Gold/DATA/BLUEPAL.DAT");
   assert.equal(found.get("music/keeper02.ogg"), "Dungeon Keeper Gold/KEEPER02.OGG");
+});
+
+test("the survey's optional extras are picked up: palettes from data/, movies from any folder", () => {
+  const paths = ["DK/DATA/MAIN.PAL", "DK/DATA/MAPFADEG.DAT", "DK/LDATA/INTROMIX.SMK", "DK/BULLFROG.SMK", "DK/mapfadeg.dat"];
+  const { found, missing, missingOptional } = matchFiles([...upper(REQUIRED, "DK"), ...paths]);
+  assert.deepEqual(missing, []);
+  assert.equal(found.get("data/main.pal"), "DK/DATA/MAIN.PAL");
+  assert.equal(found.get("data/mapfadeg.dat"), "DK/DATA/MAPFADEG.DAT");
+  assert.equal(found.get("ldata/intromix.smk"), "DK/LDATA/INTROMIX.SMK");
+  assert.equal(found.get("ldata/bullfrog.smk"), "DK/BULLFROG.SMK");
+  assert.ok(missingOptional.includes("ldata/ea.smk") && missingOptional.includes("ldata/drag.smk"));
 });
 
 test("missing required files are named, and music is only optional", () => {

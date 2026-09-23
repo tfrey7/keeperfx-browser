@@ -1,7 +1,7 @@
 // The original Dungeon Keeper files KeeperFX needs, and how to find them in whatever the player
 // hands us. The list is KeeperFX's own installer's (dkfans/keeperfx-launcher-qt, src/dkfiles.cpp
 // at 04f7b3d), which checks names only; so do we. Like the installer we store every name in
-// lower case under data/, sound/ and music/, which is where the engine reads them.
+// lower case under data/, sound/, music/ and ldata/, which is where the engine reads them.
 
 export const REQUIRED = [
   "data/bluepal.dat",
@@ -20,24 +20,38 @@ export const REQUIRED = [
   "sound/bullfrog.sbk",
 ];
 
-// The game's music, as the digital editions ship it. The game plays without it.
+// Extras the game plays without, taken when the player has them:
+// - two palette files the older list in KeeperFX's docs/files_required_from_original_dk.txt
+//   names (the engine rebuilds mapfadeg.dat itself when it is missing);
+// - the music, as the digital editions ship it;
+// - the intro and outro movies the engine plays from ldata/ (src/front_fmvids.c), once the web
+//   build has a movie player (docs/PORTING-NOTES.md §3.6).
 export const OPTIONAL = [
+  "data/main.pal",
+  "data/mapfadeg.dat",
   "music/keeper02.ogg",
   "music/keeper03.ogg",
   "music/keeper04.ogg",
   "music/keeper05.ogg",
   "music/keeper06.ogg",
   "music/keeper07.ogg",
+  "ldata/bullfrog.smk",
+  "ldata/drag.smk",
+  "ldata/ea.smk",
+  "ldata/intromix.smk",
 ];
 
 export const ALL = [...REQUIRED, ...OPTIONAL];
 
 // A data/ or sound/ file must sit in a folder of that name, as the installer checks. The music
-// sits in the root of a digital edition or in music/ of a KeeperFX install; its names are
-// distinctive enough to take from any folder.
+// sits in the root of a digital edition or in music/ of a KeeperFX install, and where each
+// edition keeps its movies is unverified; both have names distinctive enough to take from any
+// folder.
+const ANY_FOLDER = ["music", "ldata"];
+
 function fits(wanted, candidate) {
   const [dir] = wanted.split("/");
-  return dir === "music" || candidate.parent === dir;
+  return ANY_FOLDER.includes(dir) || candidate.parent === dir;
 }
 
 // paths: the player's relative paths, e.g. "Dungeon Keeper/DATA/BLUEPAL.DAT".

@@ -1,6 +1,6 @@
 /*
  * A stand-in for the engine, until the engine itself is built: it lists the player's game files
- * from the folders KeeperFX reads (data/, sound/ and music/ under its game directory) with plain
+ * from the folders KeeperFX reads (data/, sound/, music/ and ldata/ under its game directory) with plain
  * C stdio, the same calls the engine makes. Every file is opened and read to the end, so a name
  * listed here is a file the engine can load. Built by scripts/build_reader.py.
  */
@@ -74,6 +74,7 @@ int list_game_files(const char *root)
     readable += list_folder(root, "data");
     readable += list_folder(root, "sound");
     readable += list_folder(root, "music");
+    readable += list_folder(root, "ldata");
     printf("%d files readable\n", readable);
     fflush(stdout);
     return readable;

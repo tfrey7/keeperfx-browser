@@ -44,9 +44,9 @@ function showStored(stored) {
     show("ask");
     return;
   }
-  const music = OPTIONAL.filter((name) => stored.includes(name)).length;
+  const extras = OPTIONAL.filter((name) => stored.includes(name)).length;
   $("ready-status").textContent =
-    `All ${REQUIRED.length} required files are kept in this browser, and ${music} of ${OPTIONAL.length} music tracks.`;
+    `All ${REQUIRED.length} required files are kept in this browser, and ${extras} of ${OPTIONAL.length} optional extras (music, palettes and movies).`;
   fillList($("ready-list"), stored, "found");
   $("engine-view").textContent = engineView();
   show("ready");

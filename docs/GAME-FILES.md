@@ -11,25 +11,28 @@ Phase 3 of [PLAN.md](../PLAN.md). The page is `site/`; its screenshots are in `p
 - **Required** (14): `data/` bluepal.dat, bluepall.dat, dogpal.pal, hitpall.dat, lightng.pal,
   redpal.col, redpall.dat, slab0-0.dat, slab0-1.dat, vampal.pal, whitepal.col; `sound/`
   atmos1.sbk, atmos2.sbk, bullfrog.sbk.
-- **Optional** (6): `music/keeper02.ogg` to `keeper07.ogg`. The digital editions keep them in
-  their root folder; the game plays without them.
+- **Optional** (12), the extras the survey lists ([PORTING-NOTES.md §4.1](PORTING-NOTES.md)); the
+  game plays without any of them, and the page keeps whichever the player has:
+  - `data/main.pal` and `data/mapfadeg.dat`. The older list in KeeperFX's
+    `docs/files_required_from_original_dk.txt` names them; the installer dropped them (KeeperFX
+    ships or generates both). If the engine turns out to need them, move them to `REQUIRED`.
+  - `music/keeper02.ogg` to `keeper07.ogg`. The digital editions keep them in their root folder.
+  - `ldata/bullfrog.smk`, `drag.smk`, `ea.smk` and `intromix.smk`, the movies the engine plays
+    (`src/front_fmvids.c`). The first web build skips them.
 
 The installer checks names only, case-insensitively, and so does the page: without a real copy
-in hand we have no sizes or hashes to check against. The older list in KeeperFX's
-`docs/files_required_from_original_dk.txt` also names `main.pal` and `mapfadeg.dat`; the installer
-dropped them (KeeperFX ships or generates both), so the page does not ask for them. If the
-engine turns out to need them, add them to `REQUIRED`.
+in hand we have no sizes or hashes to check against.
 
 A `data/` or `sound/` file must sit in a folder of that name, anywhere under what the player
-chose, so the outer GOG, Steam or EA folder works as well as the inner one. When a name turns
-up more than once, the shallowest copy wins.
+chose, so the outer GOG, Steam or EA folder works as well as the inner one. The music and the
+movies are taken from any folder. When a name turns up more than once, the shallowest copy wins.
 
 ## Where the files live
 
 | Path in the Emscripten filesystem | What |
 |---|---|
 | `/keeperfx` | the engine's game directory |
-| `/keeperfx/player` | an IDBFS mount: the kept files, in IndexedDB (`data/`, `sound/`, `music/`, all lower case) |
+| `/keeperfx/player` | an IDBFS mount: the kept files, in IndexedDB (`data/`, `sound/`, `music/`, `ldata/`, all lower case) |
 | `/keeperfx/data/<name>` etc. | a symlink to `/keeperfx/player/data/<name>` |
 
 The player's files are linked in rather than mounted over `data/`, because KeeperFX's own GPL
@@ -49,7 +52,7 @@ py -3.10 scripts/serve.py --port <port>
 node scripts/prove_files.mjs --url http://localhost:<port>/ --debug-port <another port> --work <scratch> --shots docs/proof
 ```
 
-`tools/reader/reader.c` stands in for the engine: it lists `data/`, `sound/` and `music/` under
+`tools/reader/reader.c` stands in for the engine: it lists `data/`, `sound/`, `music/` and `ldata/` under
 `/keeperfx` with plain stdio, opening and reading every file. `prove_files.mjs` makes fake
 installs (right names, dummy bytes) and drives the served page in headless Chrome: a folder
 missing two files is refused by name, a complete folder is kept, it survives a reload, "forget

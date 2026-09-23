@@ -25,14 +25,16 @@ const debugPort = Number(arg("--debug-port", "8841"));
 const REQUIRED = ["bluepal.dat", "bluepall.dat", "dogpal.pal", "hitpall.dat", "lightng.pal", "redpal.col",
   "redpall.dat", "slab0-0.dat", "slab0-1.dat", "vampal.pal", "whitepal.col"].map((n) => `DATA/${n.toUpperCase()}`)
   .concat(["atmos1.sbk", "atmos2.sbk", "bullfrog.sbk"].map((n) => `SOUND/${n.toUpperCase()}`));
-const MUSIC = [2, 3, 4, 5, 6, 7].map((n) => `KEEPER0${n}.OGG`);
+// The optional extras: music in the root, as GOG has it, the two palettes and the movies.
+const EXTRAS = [2, 3, 4, 5, 6, 7].map((n) => `KEEPER0${n}.OGG`)
+  .concat(["DATA/MAIN.PAL", "DATA/MAPFADEG.DAT"], ["BULLFROG", "DRAG", "EA", "INTROMIX"].map((n) => `LDATA/${n}.SMK`));
 // Files a real install also has, which the page must leave alone.
 const OTHERS = ["KEEPER95.EXE", "DATA/TMAPA000.DAT", "SOUND/SOUND.DAT"];
 
 // A fake GOG-style install: upper-case names, music in the root. Returns the folder.
 function fakeInstall(name, leaveOut = []) {
   const dir = path.join(work, name, "Dungeon Keeper Gold");
-  for (const rel of [...REQUIRED, ...MUSIC, ...OTHERS]) {
+  for (const rel of [...REQUIRED, ...EXTRAS, ...OTHERS]) {
     if (leaveOut.includes(rel)) continue;
     mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
     writeFileSync(path.join(dir, rel), `dummy ${rel}\n`);
@@ -45,7 +47,7 @@ function fakeZip(file) {
   const locals = [];
   const central = [];
   let offset = 0;
-  for (const rel of [...REQUIRED, ...MUSIC, ...OTHERS]) {
+  for (const rel of [...REQUIRED, ...EXTRAS, ...OTHERS]) {
     const name = Buffer.from(`Dungeon Keeper Gold/${rel}`);
     const data = Buffer.from(`dummy ${rel}\n`);
     const packed = deflateRawSync(data);
@@ -101,14 +103,16 @@ try {
   await b.setFiles("#pick-folder", [complete]);
   await b.waitFor(state("ready"));
   let view = await b.eval(text("engine-view"));
-  check(view.includes("/keeperfx/data/bluepal.dat") && view.includes("20 files readable"),
-    "the reader reads all 20 files from the engine's folders");
+  check(view.includes("/keeperfx/data/bluepal.dat") && view.includes("26 files readable"),
+    "the reader reads all 26 files from the engine's folders");
+  check(view.includes("/keeperfx/data/main.pal") && view.includes("/keeperfx/ldata/intromix.smk"),
+    "the palettes and the movies are linked in with the rest");
   check(!view.includes("tmapa000") && !view.includes("keeper95"), "files outside the manifest are left alone");
 
   await b.goto(url);
   await b.waitFor(state("ready"));
   view = await b.eval(text("engine-view"));
-  check(view.includes("20 files readable"), "after a reload the files are still there");
+  check(view.includes("26 files readable"), "after a reload the files are still there");
   await b.screenshot(path.join(shots, "3-after-reload.png"));
 
   await b.click("#forget");
@@ -120,9 +124,9 @@ try {
   await b.setFiles("#pick-zip", [zip]);
   await b.waitFor(state("ready"));
   view = await b.eval(text("engine-view"));
-  check(view.includes("/keeperfx/sound/bullfrog.sbk") && view.includes("20 files readable"), "a .zip of the folder works too");
+  check(view.includes("/keeperfx/sound/bullfrog.sbk") && view.includes("26 files readable"), "a .zip of the folder works too");
   const requests = await b.eval(`performance.getEntriesByType("resource").map((e) => e.name).join(" ")`);
-  check(!/\.(dat|sbk|ogg|zip)\b/i.test(requests), "the page made no request carrying a game file");
+  check(!/\.(dat|pal|sbk|ogg|smk|zip)\b/i.test(requests), "the page made no request carrying a game file");
   await b.click("#forget");
   await b.waitFor(state("ask"));
 } finally {

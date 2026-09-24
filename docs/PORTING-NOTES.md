@@ -937,3 +937,104 @@ the player's prison; it plays through the same `play_smk` and was not driven sep
 ```
 node scripts/prove_movies.mjs --url https://dungeonkeeper.tfrey7.com/ --dk "<Dungeon Keeper folder>"      --debug-port <port> --work <scratch> --shots docs/proof [--engine-from site]
 ```
+
+## 14. Multiplayer: design (job 236)
+
+Status: **parked at the design (Tim, 2026-09-24).** Asked whether to build the copy-paste
+invite codes or the one-link Cloudflare signalling, Tim chose to stop here: nothing below is
+built, and the design is kept for later. Nothing that costs money or needs an account is set up
+until Tim says so (§14.4).
+
+### 14.1 What the engine already gives us
+
+KeeperFX's multiplayer is two layers, and only the bottom one touches the wire:
+
+- **The game layer**, `net_main.c`, `net_lobby.c`, `net_exchange_*.c`, `net_resync.cpp`,
+  `net_input_lag.c`, `net_checksums.c`, `front_network.c`: login, the lobby, the lockstep
+  exchange of each turn's packets, resync and desync checks. It is compiled unchanged today and
+  stays unchanged.
+- **The transport**, `struct NetSP` in `net_main.h:72`: eleven function pointers, `init`, `exit`,
+  `host`, `join`, `update`, `sendmsg_single`, `sendmsg_single_unsequenced`, `sendmsg_all`,
+  `msgready`, `readmsg`, `drop_user`. Upstream fills it with ENet over UDP in `bflib_enet.cpp`
+  (`InitEnetSP`, `:1135`); `net_main.c:109` is the only caller. Messages are opaque byte buffers
+  addressed by `NetUserId`; the host is user 0 (`SERVER_ID`).
+
+So the port writes **one new transport, `native/net_webrtc.c`**, whose `InitEnetSP` returns a
+`NetSP` backed by browser data channels, and drops the no-op one in `native/stubs/net_stub.c`
+(which keeps stubbing LAN discovery, hole punching, UPnP and the matchmaking client: none of
+them mean anything in a browser). No game message is read, built or imitated in JavaScript: the
+JS side only moves the engine's own byte buffers between peers.
+
+### 14.2 How two browsers connect
+
+**WebRTC data channels**, one `RTCPeerConnection` from each joiner to the host (a star, which is
+what ENet makes too: joiners only talk to user 0). Each connection opens two channels that
+match ENet's two:
+
+| ENet channel | Engine call | Data channel |
+|---|---|---|
+| `ENET_CHANNEL_RELIABLE` | `sendmsg_single`, `sendmsg_all` | `ordered: true` (reliable) |
+| `ENET_CHANNEL_UNSEQUENCED` | `sendmsg_single_unsequenced` | `ordered: false, maxRetransmits: 0` |
+
+A WebSocket relay was the other option. It is simpler to connect, but every packet of every
+game crosses a server we pay for, and it adds a hop of latency to a lockstep game. WebRTC sends
+the game directly between the two players and needs a server only for the first few seconds.
+
+**Signalling**, the one step WebRTC cannot do alone: the two browsers must swap an *offer* and
+an *answer* (each a short text blob) before the direct link exists. Two ways:
+
+1. **By hand, no server** (build this first). The host's page shows an invite code (the offer,
+   compressed, with all its ICE candidates gathered first, so there is no trickle); the joiner
+   pastes it (or opens it as a link: `…/engine.html#join=<code>`) and gets a reply code to send
+   back; the host pastes that. Two copy-pastes through any chat app. Costs nothing, needs no
+   account, and works on the static GitHub Pages site as it is.
+2. **A tiny signalling service** (later, if Tim wants one-link joining). A room-keyed mailbox
+   that holds the two blobs for a minute: a Cloudflare Worker with a Durable Object is ~60 lines
+   and the free tier (100,000 requests a day) covers it many thousand times over. It needs a
+   Cloudflare account (Tim's, since the domain is his). Game traffic never goes through it.
+
+**NAT traversal:** Google's public STUN servers (`stun:stun.l.google.com:19302`, free, no
+account) let most home connections meet directly. Roughly one pair in ten to twenty (both
+behind strict or mobile-carrier NAT) cannot, and would need a **TURN** relay, which does carry
+the game traffic: Cloudflare's TURN is free for the first 1,000 GB a month then $0.05/GB, and a
+KeeperFX game is a few KB/s, so realistic use costs $0, but it needs an account and a key the
+page must fetch from a server (a key is never committed). Leave TURN out until someone hits it.
+
+### 14.3 Fitting it into the engine
+
+- **The JS half** (`site/js/net.js`) owns the `RTCPeerConnection`s and keeps one queue of
+  received messages per `NetUserId`. The C half calls it through `EM_JS`; received bytes are
+  copied into the wasm heap only when `readmsg` asks.
+- **`host`/`join`**: `host` opens the lobby and starts listening for joiners' reply codes; `join`
+  takes the session text the engine already passes (`nsname->text`, the typed address in
+  upstream's "Online" screen) as the invite code. The login handshake that follows is the
+  engine's own (`LbNetwork_ExchangeLogin`).
+- **`update(new_user)`**: when a joiner's channels open, the host assigns it a user id through the
+  engine's own `new_user` callback, exactly as `bf_enet_update` does on an ENet connect; a
+  closed channel calls the drop callback with `NETDROP_ERROR`.
+- **Waiting**: the engine waits in loops (`net_lobby.c:187`, `msgready(…, timeout)`). Under
+  Asyncify, `SDL_Delay` already yields to the browser (§3.5), which is what lets a data channel's
+  `onmessage` run; `msgready` with a timeout waits with `SDL_Delay(1)` the same way.
+- **The screens**: the engine's own multiplayer menus are used. The one addition is the page
+  showing the invite and reply codes, since those are long blobs rather than an IP address.
+- `GetPing` and the byte-rate counters come from `RTCPeerConnection.getStats()`, cached once a
+  second.
+
+### 14.4 What it costs, and what waits for Tim
+
+| Piece | Needs | Cost |
+|---|---|---|
+| WebRTC transport, invite/reply codes, Google STUN | nothing new | $0 |
+| One-link joining: Cloudflare Worker signalling | a Cloudflare account (Tim's) | $0 on the free tier |
+| TURN for the strict-NAT minority | Cloudflare (or similar) account and a key served by a Worker | $0 up to 1 TB/month |
+
+The plan is to build the first row, prove two browsers on the live site playing one
+multiplayer map, and only then ask about the other two.
+
+### 14.5 How it is proved
+
+Two browser windows (two Playwright contexts, so two separate WebRTC stacks) on
+https://dungeonkeeper.tfrey7.com/: one hosts, one joins with the invite code, both reach the same
+multiplayer map and play it against each other; screenshots of both screens show the same game.
+A unit test keeps the transport honest by checking that `net_webrtc.c` fills every `NetSP` slot
+and that the build no longer compiles the no-op `InitEnetSP`.

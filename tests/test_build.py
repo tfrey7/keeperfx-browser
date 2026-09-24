@@ -89,6 +89,20 @@ class LockTest(unittest.TestCase):
     def test_an_empty_lock_just_made_is_a_build_still_naming_itself(self):
         self.assertFalse(build_wasm.stale_lock_reason("", 1))
 
+    def test_a_lock_names_its_holder_from_the_instant_it_exists(self):
+        # Job 218: a lock created first and named after was left empty, blocking every build.
+        lock = ROOT / "build" / "test-heavy-lock" / "heavy-build.lock"
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        lock.unlink(missing_ok=True)
+        try:
+            self.assertTrue(build_wasm.claim_lock(lock, self.HELD))
+            self.assertEqual(lock.read_text(encoding="utf-8"), self.HELD)
+            self.assertFalse(build_wasm.claim_lock(lock, "run-b build_wasm pid 1\n"))
+            self.assertEqual(lock.read_text(encoding="utf-8"), self.HELD, "a second claim overwrote the first")
+            self.assertEqual([p.name for p in lock.parent.iterdir()], [lock.name], "left its own file behind")
+        finally:
+            lock.unlink(missing_ok=True)
+
     def test_a_named_lock_is_live_until_two_hours(self):
         self.assertFalse(build_wasm.stale_lock_reason(self.HELD, 45 * 60))
         self.assertTrue(build_wasm.stale_lock_reason(self.HELD, build_wasm.LOCK_STALE_SECONDS))

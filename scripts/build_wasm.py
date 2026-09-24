@@ -52,8 +52,8 @@ EMSDK_REPO = "https://github.com/emscripten-core/emsdk.git"
 #: README rule: one heavy build machine-wide; a lock younger than this is live.
 HEAVY_LOCK = Path(os.environ.get("KFX_HEAVY_BUILD_LOCK", "G:/Claude Stuff/.heavy-build.lock"))
 LOCK_STALE_SECONDS = 2 * 60 * 60
-#: A build names itself in the lock the moment it creates it, so an empty one older than this was
-#: left by a build killed in that instant, or by something else: nobody holds it.
+#: A build's lock names it from the instant it exists (claim_lock), so an empty one older than this
+#: was left by something else: nobody holds it.
 EMPTY_LOCK_GRACE_SECONDS = 60
 #: ut-browser's engine-build lock (its scripts/buildlock.py machine_lock): a byte lock the OS holds
 #: for the process that took it. Every KeeperFX build waits for it too, and holds it while it
@@ -190,36 +190,47 @@ def stale_lock_reason(holder: str, age: float) -> str:
     return ""
 
 
+def claim_lock(lock: Path, holder: str) -> bool:
+    """Put a lock file naming its holder in place, all at once; False if one is there already.
+
+    The holder is written to a file of our own first and then hard-linked to the lock's name,
+    which fails if the lock exists. So the lock is never seen empty, and a build killed at any
+    moment leaves either no lock or one that names it (job 218: an empty lock blocked every build).
+    """
+    mine = lock.with_name(f"{lock.name}.{run_name()}.{os.getpid()}.tmp")
+    mine.write_text(holder, encoding="utf-8")
+    try:
+        os.link(mine, lock)
+        return True
+    except FileExistsError:
+        return False
+    finally:
+        mine.unlink(missing_ok=True)
+
+
 def take_lock() -> None:
     who = f"{run_name()} build_wasm pid {os.getpid()}"
     told = False
-    while True:
+    while not claim_lock(HEAVY_LOCK, f"{who}\n{datetime.now().isoformat(timespec='seconds')}\n"):
         try:
-            fd = os.open(HEAVY_LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except FileExistsError:
-            try:
-                age = time.time() - HEAVY_LOCK.stat().st_mtime
-                holder = HEAVY_LOCK.read_text(encoding="utf-8").strip()
-            except OSError:
-                continue  # released between the two calls
-            reason = stale_lock_reason(holder, age)
-            if reason:
-                say(f"removing a heavy-build lock that is {reason}: {holder or '(empty)'}")
-                HEAVY_LOCK.unlink(missing_ok=True)
-                continue
-            if is_our_dead_lock(holder, run_name()):
-                say(f"removing our own lock from a build that died: {holder}")
-                HEAVY_LOCK.unlink(missing_ok=True)
-                continue
-            if not told:
-                say(f"{stamp()} waiting for the heavy-build lock, held by: {holder}")
-                told = True
-            time.sleep(30)
+            age = time.time() - HEAVY_LOCK.stat().st_mtime
+            holder = HEAVY_LOCK.read_text(encoding="utf-8").strip()
+        except OSError:
+            continue  # released between the two calls
+        reason = stale_lock_reason(holder, age)
+        if reason:
+            say(f"removing a heavy-build lock that is {reason}: {holder or '(empty)'}")
+            HEAVY_LOCK.unlink(missing_ok=True)
             continue
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(f"{who}\n{datetime.now().isoformat(timespec='seconds')}\n")
-        say(f"{stamp()} took the heavy-build lock at {HEAVY_LOCK}")
-        return
+        if is_our_dead_lock(holder, run_name()):
+            say(f"removing our own lock from a build that died: {holder}")
+            HEAVY_LOCK.unlink(missing_ok=True)
+            continue
+        if not told:
+            say(f"{stamp()} waiting for the heavy-build lock, held by: {holder}")
+            told = True
+        time.sleep(30)
+    say(f"{stamp()} took the heavy-build lock at {HEAVY_LOCK}")
 
 
 def release_lock() -> None:

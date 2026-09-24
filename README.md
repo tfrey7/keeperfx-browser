@@ -48,7 +48,8 @@ py -3.10 -m unittest discover -s tests -v
 Only one engine build runs on this machine at a time, KeeperFX's or ut-browser's. There are two
 locks, and a KeeperFX build holds both while it compiles, always taken in this order:
 
-1. **KeeperFX's own**: `G:/Claude Stuff/.heavy-build.lock`, a file holding who made it and when,
+1. **KeeperFX's own**: `G:/Claude Stuff/.heavy-build.lock`, a file holding who made it and when
+   (written first and linked into place, so it is never seen empty),
    removed when the build ends. If it exists and is less than two hours old, another KeeperFX build
    is running: wait for it. An empty one names no holder, so after a minute it is nobody's: clear it.
 2. **ut-browser's**: `G:/Claude Stuff/.ut-browser-cache/build.lock` (or wherever

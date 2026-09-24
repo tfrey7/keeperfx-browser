@@ -22,7 +22,7 @@ since the plan was written:
 | SDL2, SDL2_mixer, SDL2_net | **SDL3 3.4.12, SDL3_mixer 3.2.4 (`MIX_*` API), SDL3_image 3.4.4.** There is no SDL_net at all: networking is enet6 plus curl plus raw sockets. |
 | lua "compiles as plain C" | **It is LuaJIT, which cannot target wasm.** PUC Lua 5.1.5 with about 15 lines of shim is a near drop-in replacement (§3.7). |
 | libpng | Not used. **spng** is used, for custom sprites only. |
-| ffmpeg for movies | True. It is confined to one file (`bflib_fmvids.cpp`), so stubbing it is easy. |
+| ffmpeg for movies | True. It is confined to one file (`bflib_fmvids.cpp`). Stubbed at first; since job 235 it is compiled in, cut down to Smacker (§13). |
 | (missing) | **OpenAL** (openal-soft) carries all sound effects. Emscripten ships an OpenAL (`-lopenal`). |
 | (missing) | **An optional OpenGL 3.3 renderer that runs on its own thread.** The software renderer is the code's default, but the shipped `keeperfx.cfg` picks OpenGL, so the web config sets `RENDERER=SOFTWARE` (§9). |
 | (missing) | **minizip, centijson, astronomy, curl, miniupnpc, natpmp.** The first three are compiled from source; the last three are stubbed with networking. |
@@ -324,7 +324,7 @@ means large diffs to upstream that would conflict on every rebase. **Decision: A
 | **SDL3_image** | 3.4.4 | icon load (`WindowSystemSDL.cpp:27`), PNG screenshots (`RendererSoftware.cpp:227`) | **No port.** Build it from source with its built-in stb/PNG backends, or stub the 2 calls behind a switch. Build it; it is small. |
 | **OpenAL** | openal-soft | `bflib_sndlib.cpp` (all SFX) | **Emscripten's `-lopenal`.** Check that the `alext.h` constants (`AL_FORMAT_*_MSADPCM_SOFT`, `ALC_ENUMERATE_ALL_EXT`) exist there; if they don't, add a patch that falls back. |
 | **LuaJIT** | kfx-deps 20250418 | 44 files (level scripts, lenses) | **Cannot target wasm. Use PUC Lua 5.1.5** compiled as C, plus a shim header for `luaL_setfuncs` (7 uses) and `luaL_newlib` (4 uses). Lua 5.4 is worse: `luaL_checkint` (9 uses) is gone. Compile Lua as C++ or keep it as C, and never yield from inside `lua_pcall` (setjmp plus Asyncify). |
-| **ffmpeg** | avformat, avcodec, avutil, swresample (≥ 5.1) | `bflib_fmvids.cpp` only | **Stub:** `play_smk` returns false and the intros are skipped. Later, a minimal build with the smacker demuxer and decoders only, `--disable-asm --disable-threads`. |
+| **ffmpeg** | avformat, avcodec, avutil, swresample (≥ 5.1) | `bflib_fmvids.cpp` only | **FFmpeg 8.1.3 from source, cut down to the Smacker demuxer and decoders** (§13). Stubbed until job 235. |
 | **zlib** | kfx-deps | net resync, minizip | `-sUSE_ZLIB=1` |
 | **minizip** | from zlib | `custom_sprites.c`, `custom_zip.c`, `sound_manager.cpp`, `gui_soundmsgs.cpp` | Compile `unzip.c` and `ioapi.c` from zlib's `contrib/minizip`. |
 | **spng** | kfx-deps | `custom_sprites.c` | Compile `spng.c` from source (needs zlib). |
@@ -564,7 +564,8 @@ networking, movies and OpenGL stubbed. The proof is the build log and the `.wasm
 | Switch / patch | What it removes | Why | Brought back in |
 |---|---|---|---|
 | `KFX_NO_NET`: `native/stubs/net_stub.c` replaces `bflib_enet.cpp`, `net_lan.c`, `net_holepunch.c`, `net_matchmaking.c`, `net_portforward.cpp` in the source list (no upstream edit) | enet6, curl, UPnP, NAT-PMP, LAN, matchmaking; `InitEnetSP` returns NULL so the engine's own code reports no network | no UDP in browsers | later phase (WebRTC/WebSocket) |
-| `KFX_NO_MOVIES`: patch `0002-fmvids-kfx-no-movies-switch.patch` | ffmpeg includes and the movie player in `bflib_fmvids.cpp`; `play_smk` logs and returns false. The FLIC recorder in the same file is kept | size; no port | later phase (smacker-only ffmpeg) |
+| ~~`KFX_NO_MOVIES`: patch `0002-fmvids-kfx-no-movies-switch.patch`~~ | removed by job 235: the movies play through FFmpeg again (§13) | — | job 235 |
+| Movie frames yield to the browser: patch `0005-fmvids-yield-to-browser-on-emscripten.patch` | nothing: `wait_for_pts` calls `SDL_Delay` (which yields under Asyncify) on every frame instead of `std::this_thread::sleep_for` (which spins) | without a yield the canvas never shows a movie frame | permanent |
 | LuaJIT → Lua 5.1.5 + `native/compat/lua_compat.h` (force-included, no upstream edit) | LuaJIT; the header adds `LUA_OK`, `lua_rawlen`, `luaL_setfuncs`, `luaL_newlib` | JIT cannot target wasm | permanent |
 | `bflib_crash.c` POSIX guard: patch `0001-crash-no-posix-handler-on-emscripten.patch` | backtrace/sigaction crash handler, off under `__EMSCRIPTEN__`; the two Win32 `SIGBREAK` branches become `#elif defined(SIGBREAK)` | no execinfo or `SIGBREAK` in Emscripten | permanent |
 | OpenAL Soft MSADPCM tags: `native/compat/al_compat.h` (force-included, no upstream edit) | nothing: defines `AL_FORMAT_{MONO,STEREO}_MSADPCM_SOFT` (0x1302/0x1303), which `bflib_sndlib.cpp` uses only as WAV-reader tags, never passed to OpenAL | Emscripten's OpenAL lacks the extension | permanent |
@@ -874,3 +875,65 @@ Tried and not taken:
 - **The canvas blit** (`Blit1to4` plus the upload) is under 5% of a busy frame; not worth a change
   to upstream's renderer.
 - **LTO**: not tried; with the fight's run-to-run spread (±15%) a few per cent would not show.
+
+---
+
+## 13. The movies are back (job 235)
+
+The intro (`ldata/intromix.smk`), the campaign's outro after the last level (`outromix.smk`), the
+Lord's torture after a level won with him captive (`drag.smk`) and the logos (`bullfrog.smk`,
+`ea.smk`) play through the engine's **own** movie player, `play_smk` in `src/bflib_fmvids.cpp`,
+exactly as on the desktop: FFmpeg demuxes and decodes the Smacker file, swresample converts the
+sound, the frames go through `RendererPresentImage` onto the canvas and the sound through an SDL
+audio stream. No browser video element is involved. Escape, Enter, Space or a click skips a movie
+(the engine's own check, in `output_video_frames`).
+
+The movies are the player's own files, never shipped. The GOG copy's `LDATA` holds `INTROMIX.SMK`,
+`OUTROMIX.SMK` and `Drag.smk`; the files page's manifest listed the first but not the outro, so
+`site/js/manifest.js` now takes `ldata/outromix.smk` too (all optional, from any folder, any case).
+
+What changed:
+
+| Where | Change |
+|---|---|
+| `scripts/vendor.py` | FFmpeg **n8.1.3** (`1041abdc`) is fetched into `vendor/FFmpeg`. |
+| `scripts/ffmpeg_config.py` (new) | Runs FFmpeg's own `configure` once, by hand, with everything off except the Smacker demuxer, the `smacker` and `smackaud` decoders and the file protocol; no asm, no threads, no network, no programs, `--enable-small`, `--arch=wasm` (which FFmpeg turns into plain C). It copies what configure wrote (`config.h`, `config_components.h`, the component lists, `avconfig.h`) into **`native/ffmpeg/`** and reads FFmpeg's Makefiles under that configuration into `native/ffmpeg/sources.txt`: 178 C files of libavutil, libavcodec, libavformat and libswresample. Configure needs a POSIX shell and runs hundreds of compiler tests (about 3 minutes here), so its output is committed and the build never runs it. It refuses a path with spaces, so it runs on a copy in a scratch folder with a relative `TMPDIR`. |
+| `scripts/build_wasm.py` | A new `ffmpeg` component compiles `sources.txt` with FFmpeg's own flags (`-std=c17 -Oz -DHAVE_AV_CONFIG_H ...`). The engine gets `vendor/FFmpeg` and `native/ffmpeg/include` (only `avconfig.h`, so FFmpeg's `config.h` never shadows the engine's) and loses `-DKFX_NO_MOVIES`. No CMake, no make: the same one-process-per-source build as the rest. |
+| patches | `0002-fmvids-kfx-no-movies-switch.patch` is gone. `0005-fmvids-yield-to-browser-on-emscripten.patch`: under `__EMSCRIPTEN__`, `wait_for_pts` waits with `SDL_Delay` (a yield, through Asyncify) on **every** frame, late ones too. `std::this_thread::sleep_for` spins on the browser's one thread, so the canvas would never show a frame. |
+| `scripts/gamedata.py` | still leaves any `.smk` out of KeeperFX's data: movies come only from the player. |
+| `scripts/prove_movies.mjs` (new) | The proof, below. |
+
+**Download.** `keeperfx.wasm` grew from 7,022,135 to 7,477,656 bytes (+455,521, +6.5%);
+gzipped (`-9`) from 2,274,927 to 2,447,870 bytes (+172,943, +7.6%). `keeperfx.js` grew 1,227 bytes.
+KeeperFX's data (158 MB) is unchanged, and the movies themselves come from the player's own folder.
+
+**Sound on start.** The intro plays before the player has touched the game, and a browser starts
+sound only for a page the player has used. The player reaches the engine by clicking **Start
+KeeperFX** on the files page, a same-site navigation, and Chrome carries that activation over: in
+the proof (a real mouse click on Start) SDL's audio context was `running` and the intro's sound
+reached the speakers from its first seconds.
+
+**Proof** (`scripts/prove_movies.mjs`, headless Chrome on <https://dungeonkeeper.tfrey7.com/> with
+this build's engine and page modules answered locally by `--engine-from site`, and the GOG Dungeon
+Keeper Gold folder; output in `docs/proof/movies-proof.txt`):
+
+- the files page keeps `intromix`, `outromix` and `drag`;
+- the intro starts 7 s after the engine, after the two splash screens; its sound reaches the
+  speakers in every sample for 12 s (SDL's context, peak 0.49, `movie-intro-levels.txt`) and its
+  pictures change (`movie-intro-1.png`, `movie-intro-2.png`); **Escape** skips it to the main menu
+  in 1.6 s (`movie-intro-skipped.png`);
+- the campaign's **outro** plays after the last level is won (peak 0.34, `movie-outro-1.png`,
+  `movie-outro-2.png`), and **a click** skips it to the Statistics screen in 0.3 s
+  (`movie-outro-skipped.png`); the engine logs no movie error.
+
+Reaching the outro: KeeperFX's `-level 20` switch would start the last level directly, but closes
+the game when a level so started ends. So the proof starts with `-alex -nointro`, opens the land
+view and presses **Ctrl+F10** (with cheats on, it moves the campaign on a level) nineteen times,
+1.8 s apart since a press while the map reloads is lost, clicks level 20's flag, closes the
+briefing, and wins by the cheat menu (**F12**, a left click on "Win level"), then Space on
+"Success!". The Lord's torture movie (`drag.smk`) needs a level won with the Lord of the Land in
+the player's prison; it plays through the same `play_smk` and was not driven separately.
+
+```
+node scripts/prove_movies.mjs --url https://dungeonkeeper.tfrey7.com/ --dk "<Dungeon Keeper folder>"      --debug-port <port> --work <scratch> --shots docs/proof [--engine-from site]
+```

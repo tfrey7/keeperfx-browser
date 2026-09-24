@@ -1,0 +1,21 @@
+diff --git a/src/bflib_fmvids.cpp b/src/bflib_fmvids.cpp
+index 277ccfc..30966bc 100644
+--- a/src/bflib_fmvids.cpp
++++ b/src/bflib_fmvids.cpp
+@@ -410,9 +410,16 @@ struct movie_t {
+ 		const duration pts = nanoseconds((int64_t(m_frame->pts) * (1000000000 / m_time_base.den)) * m_time_base.num);
+ 		const auto now = time_since_video_start();
+ 		const auto delta = pts - now;
++#ifdef __EMSCRIPTEN__
++		// The browser shows the canvas only when the engine yields to it, and SDL_Delay yields
++		// (Asyncify) where sleep_for spins on the one thread. Yield on every frame, late ones too.
++		const auto wait = std::chrono::duration_cast<std::chrono::milliseconds>(delta).count();
++		SDL_Delay(wait > 0 ? (Uint32)wait : 0);
++#else
+ 		if (delta > duration()) {
+ 			std::this_thread::sleep_for(delta);
+ 		}
++#endif
+ 	}
+ 
+ 	bool output_video_frames() {

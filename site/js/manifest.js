@@ -24,8 +24,9 @@ export const REQUIRED = [
 // - two palette files the older list in KeeperFX's docs/files_required_from_original_dk.txt
 //   names (the engine rebuilds mapfadeg.dat itself when it is missing);
 // - the music, as the digital editions ship it;
-// - the intro and outro movies the engine plays from ldata/ (src/front_fmvids.c), once the web
-//   build has a movie player (docs/PORTING-NOTES.md §3.6).
+// - the movies the engine plays from ldata/ (src/front_fmvids.c): the intro, the campaign's outro
+//   after the last level, the Lord's torture after a level won with him captive, and the logos.
+//   The GOG copy has intromix, outromix and drag (docs/PORTING-NOTES.md §13).
 export const OPTIONAL = [
   "data/main.pal",
   "data/mapfadeg.dat",
@@ -39,6 +40,7 @@ export const OPTIONAL = [
   "ldata/drag.smk",
   "ldata/ea.smk",
   "ldata/intromix.smk",
+  "ldata/outromix.smk",
 ];
 
 export const ALL = [...REQUIRED, ...OPTIONAL];

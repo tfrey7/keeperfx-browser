@@ -1,0 +1,23 @@
+engine from G:/Claude Stuff/fleet-work/fleet-v2-run-p26084-zytIb1/run-235-1-5272/site
+ok - the player's movies are in the game folder: intromix, outromix, drag
+ok - the intro was playing before the main menu
+intro sound began 7.4 s after the engine started
+shot movie-intro-1.png
+shot movie-intro-2.png
+ok - the intro's sound reached the speakers (peak 0.488, heard in 100% of samples, SDL's context running)
+ok - the intro's pictures moved on between the two screenshots
+ok - still in the intro after 12 seconds of it
+ok - Escape skipped the intro: the main menu 1.6 s later
+shot movie-intro-skipped.png
+shot movie-land-level20.png
+shot movie-level20-won.png
+ok - winning the last level led to the outro (last state: 21 (FeSt_OUTRO))
+shot movie-outro-1.png
+shot movie-outro-2.png
+ok - the outro's sound reached the speakers (peak 0.344)
+ok - the outro's pictures moved on between the two screenshots
+ok - still in the outro after 10 seconds of it
+ok - a click skipped the outro to the statistics 0.3 s later
+shot movie-outro-skipped.png
+ok - the engine logged no movie error
+all proved

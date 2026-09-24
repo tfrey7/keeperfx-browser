@@ -50,6 +50,29 @@ class SoundTest(unittest.TestCase):
         self.assertIn("-DDRMP3_PRIVATE=static", flags)
 
 
+class MovieTest(unittest.TestCase):
+    """The intro and cut-scenes play through the engine's own player, FFmpeg cut down to Smacker."""
+
+    def test_engine_is_built_with_its_movie_player(self):
+        # KFX_NO_MOVIES compiled play_smk down to "skip it"; nothing may switch it back on.
+        source = (ROOT / "scripts" / "build_wasm.py").read_text(encoding="utf-8")
+        self.assertNotIn('"-DKFX_NO_MOVIES"', source)
+        self.assertIn(build_wasm.FFMPEG_CONFIG / "include", build_wasm.ENGINE_INCLUDES)
+
+    def test_ffmpeg_is_configured_for_smacker_video_and_sound_only(self):
+        components = (build_wasm.FFMPEG_CONFIG / "config_components.h").read_text(encoding="utf-8")
+        enabled = {line.split()[1] for line in components.splitlines()
+                   if line.startswith("#define CONFIG_") and line.endswith(" 1")
+                   and line.split()[1].endswith(("_DECODER", "_DEMUXER", "_PROTOCOL", "_ENCODER", "_MUXER"))}
+        self.assertEqual(enabled, {"CONFIG_SMACKER_DECODER", "CONFIG_SMACKAUD_DECODER",
+                                   "CONFIG_SMACKER_DEMUXER", "CONFIG_FILE_PROTOCOL"})
+
+    def test_ffmpeg_sources_include_the_smacker_demuxer_and_decoders(self):
+        listed = (build_wasm.FFMPEG_CONFIG / "sources.txt").read_text(encoding="utf-8").split()
+        self.assertIn("libavformat/smacker.c", listed)
+        self.assertIn("libavcodec/smacker.c", listed)
+
+
 class PatchTest(unittest.TestCase):
     def test_every_patch_is_listed_in_the_porting_notes(self):
         for patch in PATCHES:

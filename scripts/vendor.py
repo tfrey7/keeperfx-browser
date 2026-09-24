@@ -35,6 +35,8 @@ GIT = {
     "centijson": ("https://github.com/mity/centijson.git", "8c7a5fb42d9f55044d60592809288164adb4ca95"),
     # v1.3.2, the zlib Emscripten's port uses; only contrib/minizip is compiled
     "zlib": ("https://github.com/madler/zlib.git", "da607da739fa6047df13e66a2af6b8bec7c2a498"),
+    # n8.1.3; only the Smacker demuxer and decoders are compiled, as native/ffmpeg/ configures it
+    "FFmpeg": ("https://github.com/FFmpeg/FFmpeg.git", "1041abdc962f4cc4f394aa8de9dc5236c0c3b9e7"),
 }
 
 #: Single files and tarballs, checked by sha256.

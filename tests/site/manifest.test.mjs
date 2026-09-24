@@ -28,6 +28,14 @@ test("the survey's optional extras are picked up: palettes from data/, movies fr
   assert.ok(missingOptional.includes("ldata/ea.smk") && missingOptional.includes("ldata/drag.smk"));
 });
 
+test("the GOG copy's three movies are taken from its LDATA folder, whatever their case", () => {
+  const paths = ["DKG/LDATA/INTROMIX.SMK", "DKG/LDATA/OUTROMIX.SMK", "DKG/LDATA/Drag.smk"];
+  const { found } = matchFiles([...upper(REQUIRED, "DKG"), ...paths]);
+  assert.equal(found.get("ldata/intromix.smk"), "DKG/LDATA/INTROMIX.SMK");
+  assert.equal(found.get("ldata/outromix.smk"), "DKG/LDATA/OUTROMIX.SMK");
+  assert.equal(found.get("ldata/drag.smk"), "DKG/LDATA/Drag.smk");
+});
+
 test("missing required files are named, and music is only optional", () => {
   const paths = REQUIRED.filter((n) => n !== "data/slab0-1.dat" && n !== "sound/atmos2.sbk").map((n) => `DK/${n}`);
   const { missing, missingOptional } = matchFiles(paths);

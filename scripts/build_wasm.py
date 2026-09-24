@@ -3,12 +3,15 @@
     py -3.10 scripts/vendor.py        # once: the pinned sources, patched
     py -3.10 scripts/build_wasm.py    # the engine; from the machine-wide cache when it can
 
-What goes in is upstream's own source list (src/**/*.c, *.cpp) with three switches for the web,
+What goes in is upstream's own source list (src/**/*.c, *.cpp) with two switches for the web,
 all recorded in docs/PORTING-NOTES.md:
 
 - KFX_NO_NET     the five networking files are replaced by native/stubs/net_stub.c
-- KFX_NO_MOVIES  ffmpeg is compiled out of bflib_fmvids.cpp by a patch; play_smk() returns false
 - LuaJIT         is replaced by PUC Lua 5.1.5 plus native/compat/lua_compat.h
+
+The movies play through FFmpeg as on the desktop, compiled from source down to the Smacker
+demuxer and decoders: native/ffmpeg/ holds the configuration and the source list
+(scripts/ffmpeg_config.py writes them).
 
 The script drives Emscripten's compiler directly, one process per source file; no CMake needed.
 It is a heavy build, so it takes the machine-wide locks the README describes (its own and
@@ -369,12 +372,28 @@ def engine_sources() -> list[Path]:
     return found
 
 
+FFMPEG = VENDOR / "FFmpeg"
+#: What scripts/ffmpeg_config.py wrote: FFmpeg's configuration and the sources it compiles.
+FFMPEG_CONFIG = ROOT / "native" / "ffmpeg"
+
 ENGINE_INCLUDES = [
     KFX / "src", GENERATED, KFX / "deps" / "centitoml", KFX / "deps", KFX / "deps" / "glad" / "include",
     VENDOR / "lua-5.1.5" / "src", VENDOR / "centijson" / "src", VENDOR / "libspng" / "spng",
     VENDOR / "zlib" / "contrib", VENDOR / "astronomy",
     VENDOR / "SDL_mixer" / "include", VENDOR / "SDL_image" / "include",
+    FFMPEG, FFMPEG_CONFIG / "include",
 ]
+
+
+def ffmpeg_sources() -> list[Path]:
+    lines = (FFMPEG_CONFIG / "sources.txt").read_text(encoding="utf-8").splitlines()
+    return [FFMPEG / line for line in lines if line and not line.startswith("#")]
+
+
+#: FFmpeg's own compiler flags from its configure (ffbuild/config.mak), for size (-Oz).
+FFMPEG_FLAGS = ["-std=c17", "-Oz", "-fno-math-errno", "-fno-signed-zeros", "-DHAVE_AV_CONFIG_H",
+                "-D_ISOC11_SOURCE", "-D_FILE_OFFSET_BITS=64", "-D_LARGEFILE_SOURCE",
+                "-D_POSIX_C_SOURCE=200112", "-D_XOPEN_SOURCE=600"]
 
 
 #: SDL_mixer's built-in decoders; no external codec libraries. MP3 is for the mentor's speech
@@ -417,8 +436,10 @@ def components() -> list[tuple[str, list[Path], list[str]]]:
          ["-DBUILD_SDL", "-DSDL_BUILD_MAJOR_VERSION=3", "-DSDL_BUILD_MINOR_VERSION=4",
           "-DSDL_BUILD_MICRO_VERSION=4", "-DLOAD_PNG", "-DSAVE_PNG=1", "-DLOAD_BMP", "-DUSE_STBIMAGE",
           "-DSDL_IMAGE_USE_COMMON_BACKEND"] + inc([image / "include", image / "src"])),
+        ("ffmpeg", ffmpeg_sources(),
+         FFMPEG_FLAGS + inc([FFMPEG_CONFIG, FFMPEG_CONFIG / "include", FFMPEG, FFMPEG / "compat" / "stdbit"])),
         ("engine", engine_sources() + generate(),
-         ["-DBFDEBUG_LEVEL=0", "-DDEBUG=0", "-DKFX_NO_MOVIES", "-DKFX_NO_NET", "-DSPNG_STATIC=1",
+         ["-DBFDEBUG_LEVEL=0", "-DDEBUG=0", "-DKFX_NO_NET", "-DSPNG_STATIC=1",
           "-include", str(ROOT / "native" / "compat" / "lua_compat.h"),
           "-include", str(ROOT / "native" / "compat" / "al_compat.h")] + inc(ENGINE_INCLUDES)),
     ]

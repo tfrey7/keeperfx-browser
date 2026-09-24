@@ -55,7 +55,7 @@ def wanted(rel: str) -> bool:
     if top not in FOLDERS:
         return rel == "keeperfx.cfg"
     if name.endswith(".smk"):
-        return False  # movies: stubbed by KFX_NO_MOVIES
+        return False  # movies: the player's own files, never published (PORTING-NOTES §13)
     if top == "campgns":
         return len(parts) == 1 or parts[1] == f"{CAMPAIGN}.cfg" or parts[1] == CAMPAIGN \
             or parts[1] in (f"{CAMPAIGN}_{LANGUAGE}", f"{CAMPAIGN}_lnd", f"{CAMPAIGN}_crtr", "campgn_order.txt")

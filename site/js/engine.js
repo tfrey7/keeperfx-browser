@@ -11,9 +11,19 @@ import { loadKfxData } from "./kfxdata.js";
 import { endedMessage, setUpView, showEnded } from "./view.js";
 import { startReadout } from "./fps.js";
 import { limitOutput } from "./limiter.js";
+import { soundIsBlocked, waitForClick } from "./soundgate.js";
 
 // Before the engine opens its audio contexts: hold a big fight's effects under full scale.
 limitOutput();
+
+// Opened directly rather than from the Start button, the browser holds the sound back until a
+// click: ask for it now, while the engine loads, and start the engine once it is given.
+const clickPanel = document.getElementById("click-to-play");
+const soundBlocked = soundIsBlocked();
+const soundReady = soundBlocked.then((blocked) => blocked && waitForClick({
+  panel: clickPanel,
+  button: document.getElementById("play"),
+}));
 
 const LOG_FILE = `${ROOT}/keeperfx.log`;
 const status = document.getElementById("engine-status");
@@ -114,6 +124,8 @@ show(`page: ${saves.length} saved game(s) kept in this browser, in ${SAVES}; sta
 // Each save is written back as the engine closes it (autoPersist); this catches anything else.
 document.addEventListener("visibilitychange", () => document.hidden && persist());
 window.addEventListener("pagehide", persist);
+if (await soundBlocked && !clickPanel.hidden) setStatus("Ready: click the game to start it, with sound.");
+await soundReady;
 setStatus("The engine is running.", "good");
 
 const timer = setInterval(() => mirrorLog(engine.FS), 100);

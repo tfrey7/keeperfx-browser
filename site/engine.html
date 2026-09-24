@@ -17,6 +17,13 @@
 <div class="game-body">
   <div class="stage" id="stage">
     <canvas id="canvas" width="640" height="480" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+    <div class="click-to-play" id="click-to-play" hidden>
+      <div class="card">
+        <p class="card-title">Click to play</p>
+        <p class="card-text">Your browser keeps the sound off until you click.</p>
+        <button type="button" id="play">Play with sound</button>
+      </div>
+    </div>
     <div class="ended" id="ended" role="status" hidden>
       <p class="ended-text" id="ended-text">The game has closed.</p>
       <div class="buttons">

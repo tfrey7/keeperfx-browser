@@ -3,5 +3,8 @@
   "check": "py -3.10 -m unittest discover -s tests -v",
   "suite": "py -3.10 -m unittest discover -s tests -v",
   "main": "master",
-  "protect": ["vendor/", "build/", "emsdk/", "gamedata/", "__pycache__/"]
+  "protect": ["vendor/", "build/", "emsdk/", "gamedata/", "__pycache__/", ".state/"],
+  "restartHook": ["py", "-3.10", "scripts/deploy.py", "--sha", "{sha}", "--item", "{item}"],
+  "restart": "nothing on this machine: the landing pushes master, GitHub builds and publishes it to https://dungeonkeeper.tfrey7.com/, and the restartHook waits for that and live-checks it, record in .state/deploy.json",
+  "live": "https://dungeonkeeper.tfrey7.com/"
 }

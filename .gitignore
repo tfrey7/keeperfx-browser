@@ -10,3 +10,4 @@ __pycache__/
 site/reader.js
 site/keeperfx.js
 site/keeperfx.js.symbols
+.state/

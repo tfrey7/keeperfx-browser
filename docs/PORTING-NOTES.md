@@ -354,7 +354,11 @@ engine, and compiled by our CMake. Nothing is fetched at build time without a pi
 - **Mouse.** `SDL_WarpMouseInWindow` does nothing in the browser, and relative mode needs pointer
   lock. The game warps the cursor on level entry (`game_loop.c:1112`). This matters in phase 5.
 - **Audio.** OpenAL and SDL3 each open their own AudioContext, and browsers start audio only
-  after a user gesture. The page resumes both on the first click.
+  after a user gesture. The page resumes both on the first click. Desktop OpenAL Soft limits its
+  output; Emscripten's OpenAL wires every source through one gain straight to the speakers, so a
+  big fight clipped (peak 1.42). `site/js/limiter.js` routes whatever connects to a context's
+  destination through a hard-knee compressor, trimmed so sound under -3 dB passes unchanged;
+  `scripts/prove_limiter.mjs` plays level 3's fight and meters both contexts (effects 0.82 with it).
 
 ---
 

@@ -10,6 +10,10 @@ import { ROOT, SAVES, mountStore, mountSaves, persistSaves } from "./storage.js"
 import { loadKfxData } from "./kfxdata.js";
 import { endedMessage, setUpView, showEnded } from "./view.js";
 import { startReadout } from "./fps.js";
+import { limitOutput } from "./limiter.js";
+
+// Before the engine opens its audio contexts: hold a big fight's effects under full scale.
+limitOutput();
 
 const LOG_FILE = `${ROOT}/keeperfx.log`;
 const status = document.getElementById("engine-status");

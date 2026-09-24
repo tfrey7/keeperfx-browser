@@ -50,3 +50,22 @@ export function setUpView({ stage, canvas, fullscreenButton, logButton, logPanel
     canvas.focus?.();
   });
 }
+
+// What the page says when the engine ends: quitting from the main menu is a normal end (code 0),
+// anything else is a failure whose explanation is in the engine log.
+export function endedMessage(code) {
+  return code === 0
+    ? { text: "The game has closed.", kind: "" }
+    : { text: `The engine stopped (exit code ${code}). Its log explains why.`, kind: "bad" };
+}
+
+// Shows the "game has closed" notice over the canvas, out of full screen so its buttons can be
+// reached. The engine cannot be started twice in one page, so Play again loads the page afresh;
+// the player's files and saves are kept in the browser, so it goes straight back to the menu.
+export function showEnded({ notice, text, restartButton }, message) {
+  text.textContent = message;
+  notice.hidden = false;
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  restartButton.addEventListener("click", () => location.reload());
+  restartButton.focus();
+}

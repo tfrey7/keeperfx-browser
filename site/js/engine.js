@@ -8,7 +8,7 @@
 
 import { ROOT, SAVES, mountStore, mountSaves, persistSaves } from "./storage.js";
 import { loadKfxData } from "./kfxdata.js";
-import { setUpView } from "./view.js";
+import { endedMessage, setUpView, showEnded } from "./view.js";
 
 const LOG_FILE = `${ROOT}/keeperfx.log`;
 const status = document.getElementById("engine-status");
@@ -39,6 +39,10 @@ function setStatus(text, kind = "") {
   }
 }
 
+function persist() {
+  persistSaves(engine.FS).catch((err) => show(`page: saves not kept: ${err}`, true));
+}
+
 // Mirrors whatever the engine has appended to its log since the last look.
 let logRead = 0;
 function mirrorLog(FS) {
@@ -59,9 +63,17 @@ try {
     canvas: document.getElementById("canvas"),
     print: (line) => show(line),
     printErr: (line) => show(line, true),
+    // main has returned: the player quit from the main menu (code 0), or the engine gave up.
     onExit: (code) => {
       mirrorLog(engine.FS);
-      setStatus(`The engine stopped (exit code ${code}). Its log is below.`, code ? "bad" : "");
+      persist();
+      const { text, kind } = endedMessage(code);
+      setStatus(text, kind);
+      showEnded({
+        notice: document.getElementById("ended"),
+        text: document.getElementById("ended-text"),
+        restartButton: document.getElementById("restart"),
+      }, text);
     },
     onAbort: (what) => {
       mirrorLog(engine.FS);
@@ -92,7 +104,6 @@ engine.FS.chdir(ROOT);
 show(`page: ${kept.length} of the player's files are linked into ${ROOT}`);
 show(`page: ${saves.length} saved game(s) kept in this browser, in ${SAVES}; starting main()`);
 // Each save is written back as the engine closes it (autoPersist); this catches anything else.
-const persist = () => persistSaves(engine.FS).catch((err) => show(`page: saves not kept: ${err}`, true));
 document.addEventListener("visibilitychange", () => document.hidden && persist());
 window.addEventListener("pagehide", persist);
 setStatus("The engine is running.", "good");

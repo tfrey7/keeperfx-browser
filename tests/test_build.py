@@ -26,6 +26,12 @@ class PinTest(unittest.TestCase):
         self.assertLessEqual(build_wasm.MAX_JOBS, 4)
 
 
+class ExitTest(unittest.TestCase):
+    def test_engine_tells_the_page_when_the_player_quits(self):
+        # With EXIT_RUNTIME=0 main's return never reaches onExit: Quit left a black box.
+        self.assertIn("-sEXIT_RUNTIME=1", build_wasm.LINK)
+
+
 class SoundTest(unittest.TestCase):
     def test_mixer_decodes_mp3_for_the_mentors_speech(self):
         self.assertIn("-DDECODER_MP3_DRMP3", build_wasm.MIXER_DECODERS)

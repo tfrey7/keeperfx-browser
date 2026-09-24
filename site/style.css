@@ -160,6 +160,20 @@ html.game-page body { display: flex; flex-direction: column; background: #000; }
   outline: none;
 }
 
+/* When the engine ends (the player quit), a notice with a way back sits over the black canvas. */
+.stage > * { grid-area: 1 / 1; }
+.ended {
+  z-index: 1;
+  padding: 1.25rem 1.75rem;
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+}
+.ended[hidden] { display: none; }
+.ended-text { margin: 0; font-size: 1.1rem; font-weight: 600; }
+.ended .buttons { justify-content: center; margin-bottom: 0; }
+
 .log-panel {
   width: min(34rem, 45vw);
   display: flex;

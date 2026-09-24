@@ -17,6 +17,13 @@
 <div class="game-body">
   <div class="stage" id="stage">
     <canvas id="canvas" width="640" height="480" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+    <div class="ended" id="ended" role="status" hidden>
+      <p class="ended-text" id="ended-text">The game has closed.</p>
+      <div class="buttons">
+        <button type="button" id="restart">Play again</button>
+        <a class="button quiet" href="./">Your game files</a>
+      </div>
+    </div>
   </div>
 
   <aside class="log-panel" id="log-panel" hidden>

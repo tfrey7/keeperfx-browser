@@ -786,3 +786,26 @@ Open ends:
   `alpha.col` on every start (§9).
 - The live site's data load stuck once at "158 of 158 MB" and was fine on a reload, the same fault
   §10 saw on the local server: `kfxdata.js` wants a timeout and retry per file.
+
+## 12. Quitting from the main menu (job 214)
+
+Main menu → Quit left the canvas black for good while the page still said "The engine is
+running." and offered no way back. The engine itself quit properly: `LbBullfrogMain` shut the
+renderer down and returned from `main`. The page never heard, because the engine was linked
+with `-sEXIT_RUNTIME=0`: under that setting Emscripten never calls `onExit`, and under Asyncify
+`main`'s late return (after its first yield) is dropped altogether.
+
+| What stopped it | Where | Fix |
+|---|---|---|
+| The page never learned the engine had ended | `scripts/build_wasm.py` `LINK` | `-sEXIT_RUNTIME=1`. Asyncify then holds the runtime alive across every sleep and lets it end when `main` returns, which calls the page's `onExit`. Play, save, reload and load still pass `prove_saves.mjs` with it. |
+| Nothing said the game had closed, and nothing restarted it | `site/engine.html`, `site/js/engine.js`, `site/js/view.js` | `onExit` keeps the saves, says "The game has closed." in the bar and over the canvas, leaves full screen, and offers **Play again** (the page loads afresh; the engine cannot run `main` twice in one page, and the player's files are kept, so it goes straight back to the main menu) and **Your game files**. Any exit code but 0 says the engine stopped and opens its log. |
+
+Proved with `scripts/prove_quit.mjs` against a local server (`quit-closed.png`, `quit-again.png`):
+
+```
+node scripts/prove_quit.mjs --url http://localhost:<port>/ --dk "<your Dungeon Keeper folder>" \
+     --debug-port <port> --work <scratch> --shots docs/proof
+```
+
+In KeeperFX 1.4.0 the main menu's Quit ends the game at once, with no tick to confirm; the proof
+clicks a tick only if the engine asks.

@@ -75,8 +75,10 @@ LINK = [
     "-sASYNCIFY=1", "-sASYNCIFY_STACK_SIZE=1048576",
     "-sSTACK_SIZE=4MB", "-sINITIAL_MEMORY=256MB", "-sALLOW_MEMORY_GROWTH=1",
     "-sFORCE_FILESYSTEM=1", "-lidbfs.js",
-    # The page mounts the game folder, then calls main itself.
-    "-sMODULARIZE=1", "-sEXPORT_NAME=KeeperFX", "-sINVOKE_RUN=0", "-sEXIT_RUNTIME=0",
+    # The page mounts the game folder, then calls main itself. EXIT_RUNTIME=1 lets the engine end:
+    # when the player quits, main returns and the page's onExit hears it; without it the canvas
+    # goes black while the page still says the engine is running.
+    "-sMODULARIZE=1", "-sEXPORT_NAME=KeeperFX", "-sINVOKE_RUN=0", "-sEXIT_RUNTIME=1",
     "-sEXPORTED_RUNTIME_METHODS=FS,callMain",
     # keeperfx.js.symbols: wasm function index -> name, so a stack from the browser can be read.
     "--emit-symbol-map",

@@ -26,6 +26,14 @@ class PinTest(unittest.TestCase):
         self.assertLessEqual(build_wasm.MAX_JOBS, 4)
 
 
+class SpeedTest(unittest.TestCase):
+    def test_engine_is_compiled_and_linked_at_o2(self):
+        # Phase 7: at -O1 a big fight cost about 7.4 ms a frame and the wasm was 13.5 MB;
+        # at -O2 it is about 5.3 ms and 7.0 MB (PORTING-NOTES §12).
+        self.assertIn("-O2", build_wasm.COMMON)
+        self.assertIn("-O2", build_wasm.LINK)
+
+
 class ExitTest(unittest.TestCase):
     def test_engine_tells_the_page_when_the_player_quits(self):
         # With EXIT_RUNTIME=0 main's return never reaches onExit: Quit left a black box.

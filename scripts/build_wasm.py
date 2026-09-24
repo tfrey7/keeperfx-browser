@@ -67,10 +67,10 @@ NET_FILES = {"bflib_enet.cpp", "net_lan.c", "net_holepunch.c", "net_matchmaking.
 #: Windows-only files, excluded exactly as upstream's own Linux build does.
 WINDOWS_FILES = {"PlatformWindows.cpp", "WindowCompositorWin.cpp"}
 
-COMMON = ["-O1", "-w", "-sUSE_SDL=3", "-sUSE_ZLIB=1", "-fexceptions"]
+COMMON = ["-O2", "-w", "-sUSE_SDL=3", "-sUSE_ZLIB=1", "-fexceptions"]
 
 LINK = [
-    "-O1", "-sUSE_SDL=3", "-sUSE_ZLIB=1", "-lopenal", "-fexceptions",
+    "-O2", "-sUSE_SDL=3", "-sUSE_ZLIB=1", "-lopenal", "-fexceptions",
     # The engine's blocking loops yield to the browser through Asyncify (PORTING-NOTES §3.5).
     "-sASYNCIFY=1", "-sASYNCIFY_STACK_SIZE=1048576",
     "-sSTACK_SIZE=4MB", "-sINITIAL_MEMORY=256MB", "-sALLOW_MEMORY_GROWTH=1",

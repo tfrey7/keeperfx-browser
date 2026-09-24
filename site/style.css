@@ -187,3 +187,5 @@ html.game-page body { display: flex; flex-direction: column; background: #000; }
 .log-panel h2 { margin: 0; }
 .log-panel .engine-view { flex: 1; overflow: auto; white-space: pre; }
 .log-panel footer { margin-top: 0.75rem; }
+
+.fps { margin: 0 0 0.4rem; font: 600 0.85rem ui-monospace, monospace; color: var(--gold); }

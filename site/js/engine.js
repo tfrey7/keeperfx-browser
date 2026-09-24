@@ -9,6 +9,7 @@
 import { ROOT, SAVES, mountStore, mountSaves, persistSaves } from "./storage.js";
 import { loadKfxData } from "./kfxdata.js";
 import { endedMessage, setUpView, showEnded } from "./view.js";
+import { startReadout } from "./fps.js";
 
 const LOG_FILE = `${ROOT}/keeperfx.log`;
 const status = document.getElementById("engine-status");
@@ -56,6 +57,9 @@ function mirrorLog(FS) {
     if (line.trim()) show(`[keeperfx.log] ${line.trimEnd()}`);
   }
 }
+
+// engine.html?fps shows the frame rate above the game (docs/PORTING-NOTES.md, phase 7).
+startReadout(document.getElementById("canvas"), new URLSearchParams(location.search).has("fps"));
 
 let engine;
 try {
@@ -111,7 +115,11 @@ setStatus("The engine is running.", "good");
 const timer = setInterval(() => mirrorLog(engine.FS), 100);
 try {
   // With Asyncify, callMain returns at the engine's first yield; main carries on after it.
-  engine.callMain([]);
+  // engine.html?args=-level%201 passes the engine its desktop command-line options, the way a
+  // shortcut to keeperfx.exe would (a level to start on, or -alex for the console's cheats).
+  const args = (new URLSearchParams(location.search).get("args") ?? "").split(/\s+/).filter(Boolean);
+  if (args.length) show(`page: starting main() with ${args.join(" ")}`);
+  engine.callMain(args);
 } catch (err) {
   // exit() arrives here as an ExitStatus; onExit has already reported it.
   if (err?.name !== "ExitStatus") {

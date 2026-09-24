@@ -1,0 +1,38 @@
+# scripts/measure_fps.mjs on https://dungeonkeeper.tfrey7.com/, headless Chrome on Tim's PC, 2026-09-24.
+# before = the live engine (-O1). after = the -O2 engine, served over the live page with --engine-from.
+# busy = CPU time per presented frame, from each scene's CPU profile. Three runs of each.
+before  quiet        127.2 fps  busy 3.34 ms/frame
+before  fight         75.4 fps  busy 8.82 ms/frame
+before  possession      80 fps  busy 8.04 ms/frame
+before  quiet        131.1 fps  busy 3.13 ms/frame
+before  fight           92 fps  busy 6.52 ms/frame
+before  possession   122.5 fps  busy 3.51 ms/frame
+before  quiet        131.5 fps  busy 3.09 ms/frame
+before  fight         89.6 fps  busy 6.84 ms/frame
+before  possession   113.3 fps  busy 4.38 ms/frame
+after   quiet        131.4 fps  busy 3.03 ms/frame
+after   fight        106.9 fps  busy 4.92 ms/frame
+after   possession   111.3 fps  busy 4.38 ms/frame
+after   quiet        133.3 fps  busy 2.78 ms/frame
+after   fight         94.4 fps  busy 5.91 ms/frame
+after   possession   100.6 fps  busy 5.13 ms/frame
+after   quiet        129.9 fps  busy 3.21 ms/frame
+after   fight        102.4 fps  busy 5.22 ms/frame
+after   possession   121.5 fps  busy 3.71 ms/frame
+
+# where the time goes in the fight, after (-O2), self time:
+ 46.6%  (idle)
+ 15.1%  trig
+  8.2%  draw_gpoly
+  3.5%  software_execute_world_from_ir
+  3.4%  Blit1to4
+  2.9%  (program)
+  2.0%  LbSpriteDrawUsingScalingData
+  1.4%  LbSpriteDrawRemapUsingScalingUpDataSolidLR
+  1.4%  texSubImage2D
+  1.0%  LbSpriteDrawUsingScalingUpDataTrans1LR
+  0.8%  engine
+  0.7%  do_map_who
+  0.6%  SoftwareWorldViewRenderer::SubmitKeeperSprite(SpriteScale const*, unsigned char const*, int, int, int, unsigned int, unsigned char const*, int)
+  0.6%  map_block_revealed
+  0.5%  LbSpriteDrawUsingScalingUpDataSolidLR

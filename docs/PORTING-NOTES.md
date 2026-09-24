@@ -809,3 +809,63 @@ node scripts/prove_quit.mjs --url http://localhost:<port>/ --dk "<your Dungeon K
 
 In KeeperFX 1.4.0 the main menu's Quit ends the game at once, with no tick to confirm; the proof
 clicks a tick only if the engine asks.
+
+
+## 12. Phase 7: speed (job 210)
+
+**The goal was already met before this job changed anything.** On
+<https://dungeonkeeper.tfrey7.com/> the first level runs above the screen's 60 frames a second in
+every scene tried, and the game logic keeps its proper 20 turns a second; the battle test (job
+208) saw the same, 90–108 fps with no drops. The job measured where the time goes, landed the one
+change that clearly paid, and left the tools for the next person.
+
+**How it is measured.** `engine.html?fps` shows the engine's presents and the browser's frames a
+second above the game (`site/js/fps.js`; it counts SDL's WebGL `clear()` once per present, so the
+engine is untouched), and `window.kfxFps()` gives the counters to a driver.
+`engine.html?args=-alex` passes the engine desktop command-line options (`-alex` is KeeperFX's
+cheat switch). `scripts/measure_fps.mjs` starts level 1 through the menus as a player does, then
+measures three scenes for ten seconds each, with a screenshot and a CPU profile of each:
+
+- **quiet**: the opening dungeon, 20 s in, imps at work
+- **fight**: 25 of the keeper's creatures and 25 heroes, level 4, made with the engine's own
+  `!create.creature` command, fighting in the middle of the view
+- **possession**: `!power.give POWER_POSSESS`, then Possess Creature on a creature in that fight
+
+```
+node scripts/measure_fps.mjs --url https://dungeonkeeper.tfrey7.com/ --dk "<your Dungeon Keeper folder>" \
+     --debug-port <port> --work <scratch> --shots docs/proof --label after [--page-from site] [--engine-from <dir>]
+```
+
+`--engine-from` serves a local `keeperfx.js`/`.wasm` over the live page, so an engine build is
+measured on the live site before it lands. Frames a second alone are a poor measure here: the
+engine is not CPU-bound, and the fight is random (creature kinds, who dies first), so the script's
+profiles also give **busy time per frame**, which is what the table uses.
+
+**Results** (`docs/proof/fps-results.txt`, three runs each, headless Chrome on Tim's PC; screenshots
+`docs/proof/fps-before-*.png` and `fps-after-*.png`):
+
+| Scene | Before (-O1, live) | After (-O2) |
+|---|---|---|
+| quiet | 127–132 fps, 3.2 ms a frame | 130–133 fps, 3.0 ms a frame |
+| fight | 75–92 fps, 7.4 ms a frame | 94–107 fps, **5.3 ms** a frame |
+| possession | 80–123 fps, 5.3 ms a frame | 101–122 fps, 4.4 ms a frame |
+| `keeperfx.wasm` | 13.5 MB | **7.0 MB** |
+
+**Where the time goes** (the fight, -O2, self time): idle 47%; the software renderer's triangle
+rasteriser `trig` 15% and `draw_gpoly` 8%; `software_execute_world_from_ir` 3.5%; the palette blit
+`Blit1to4` 3.4%; sprite drawing about 5%; the WebGL upload `texSubImage2D` 1.4%. Sound does not
+show. The quiet scene is paced, not busy: about 3 ms of work per 7.6 ms frame.
+
+| Change | Why |
+|---|---|
+| **`-O2` for every object and the link** (`scripts/build_wasm.py`, was `-O1`) | About a quarter less work per frame in the fight, and the engine's download halves (binaryen's `-O2` also optimises the Asyncify-instrumented code). KeeperFX's own desktop release is `RelWithDebInfo`, i.e. `-O2`, so the web build now matches it. `tests/test_build.py` `SpeedTest` holds it there. |
+
+Tried and not taken:
+
+- **`-O3 -msimd128`**: no better than `-O2` in any scene (fight 5.4 vs 4.9 ms a frame in paired
+  runs) and a larger wasm (7.6 MB), so not worth the extra browser requirement.
+- **Replacing Asyncify with `emscripten_set_main_loop`**: §3.5 still stands. The profile shows no
+  Asyncify cost worth the rewrite of ten nested loops; the time is in the renderer.
+- **The canvas blit** (`Blit1to4` plus the upload) is under 5% of a busy frame; not worth a change
+  to upstream's renderer.
+- **LTO**: not tried; with the fight's run-to-run spread (±15%) a few per cent would not show.

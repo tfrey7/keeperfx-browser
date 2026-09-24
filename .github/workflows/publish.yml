@@ -1,0 +1,108 @@
+# Publish master to https://dungeonkeeper.tfrey7.com/ on GitHub Pages.
+#
+# Every push builds the site from a clean checkout of exactly the pushed commit: the engine
+# compiled with Emscripten, plus KeeperFX's own GPL release data fetched from KeeperFX's GitHub
+# release. No original Dungeon Keeper file is ever part of it: build_site.py refuses one, and the
+# player's own files stay in their browser. The linked engine is kept between runs, keyed by
+# everything it is built from, so a push that changes only the page skips the heavy build.
+name: publish
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      # The Emscripten build_wasm.py pins.
+      EMSDK_VERSION: "6.0.9"
+      KFX_BUILD_JOBS: "4"
+      KFX_HEAVY_BUILD_LOCK: ${{ github.workspace }}/../heavy-build.lock
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Engine source, pinned and patched
+        run: python scripts/vendor.py
+
+      - name: Engine from an earlier run
+        id: engine-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            site/keeperfx.js
+            site/keeperfx.wasm
+            site/reader.js
+            site/reader.wasm
+          key: engine-${{ env.EMSDK_VERSION }}-${{ hashFiles('scripts/vendor.py', 'patches/**', 'native/**', 'tools/reader/**', 'scripts/build_wasm.py', 'scripts/build_reader.py') }}
+
+      - name: Emscripten ${{ env.EMSDK_VERSION }}
+        if: steps.engine-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install "$EMSDK_VERSION"
+          "$RUNNER_TEMP/emsdk/emsdk" activate "$EMSDK_VERSION"
+          echo "EMSDK=$RUNNER_TEMP/emsdk" >> "$GITHUB_ENV"
+
+      - name: Engine
+        if: steps.engine-cache.outputs.cache-hit != 'true'
+        run: |
+          python scripts/build_wasm.py
+          python scripts/build_reader.py --emsdk "$EMSDK"
+
+      - name: Keep the engine for the next run
+        if: steps.engine-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            site/keeperfx.js
+            site/keeperfx.wasm
+            site/reader.js
+            site/reader.wasm
+          key: ${{ steps.engine-cache.outputs.cache-primary-key }}
+
+      - name: KeeperFX's release, from an earlier run
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/release/*.7z
+          key: release-${{ hashFiles('scripts/fetch_release.py') }}
+
+      - name: KeeperFX's own data
+        run: |
+          release=$(python scripts/fetch_release.py --into "$RUNNER_TEMP/release" | tail -1)
+          python scripts/gamedata.py --release "$release" --out gamedata/kfxdata
+
+      - name: Site
+        run: python scripts/build_site.py --kfx-data gamedata/kfxdata --sha "${GITHUB_SHA::12}"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

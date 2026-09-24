@@ -72,13 +72,20 @@ try {
   // 1. The player's own files, through the files page.
   await b.goto(url);
   await b.waitFor(`document.body.dataset.state === "ask"`);
+  await b.screenshot(path.join(shots, "files-ask.png"));
+  check(true, "the files page asks for the Dungeon Keeper folder");
   await b.setFiles("#pick-folder", [path.resolve(dk)]);
   await b.waitFor(`document.body.dataset.state === "ready"`, 60000);
+  await b.screenshot(path.join(shots, "files-ready.png"));
   check(true, "the files page kept the Dungeon Keeper folder");
 
-  // 2. The engine page: KeeperFX's data, then main().
-  await b.goto(new URL("engine.html", url).href);
-  await b.waitFor(`document.getElementById("engine-status").textContent.includes("running")`, 120000);
+  // 2. Its Start button opens the engine page: KeeperFX's data, then main().
+  const opened = b.once("Page.loadEventFired");
+  await b.eval(`document.getElementById("start").click()`);
+  await opened;
+  // 158 MB of KeeperFX's data: a live site over the internet takes longer than a local server.
+  await b.waitFor(`document.getElementById("engine-status").textContent.includes("running")`,
+    Number(arg("--data-timeout", "120000")));
   check(true, "KeeperFX's data loaded and main() started");
 
   // 3. The main menu: the engine logs each frontend state it enters.

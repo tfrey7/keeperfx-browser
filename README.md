@@ -26,6 +26,17 @@ py -3.10 scripts/serve.py --port 8000 --kfx-data <that folder>
 
 [docs/PORTING-NOTES.md §9](docs/PORTING-NOTES.md) has the details and the proof script.
 
+## Where it is published
+
+<https://dungeonkeeper.tfrey7.com/>, on GitHub Pages. Every push to `master` is built and
+published by GitHub (`.github/workflows/publish.yml`): the engine with Emscripten (kept between
+runs while its inputs are unchanged), KeeperFX's own GPL release data from KeeperFX's GitHub
+release (`scripts/fetch_release.py`, then `scripts/gamedata.py`), and the site put together by
+`scripts/build_site.py`, which refuses any original Dungeon Keeper file. Nothing heavy runs on
+this machine. After each landing the console runs `scripts/deploy.py` (fleet.json's
+`restartHook`), which waits for the live site to name the landed commit and checks it answers.
+The site's `changes.html` lists every landing, one dated line each.
+
 ## Test it
 
 ```

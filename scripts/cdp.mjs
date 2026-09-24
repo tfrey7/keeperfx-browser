@@ -21,7 +21,10 @@ export class Browser {
     mkdirSync(profile, { recursive: true });
     const proc = spawn(exe, [
       "--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
-      `--window-size=${width},${height}`, "--no-first-run", "--no-default-browser-check", "about:blank",
+      `--window-size=${width},${height}`, "--no-first-run", "--no-default-browser-check",
+      // Extra Chrome flags, each starting --, e.g. --host-resolver-rules to reach a live site
+      // whose name a local DNS cache still refuses.
+      ...(process.env.CHROME_FLAGS || "").split(/\s+(?=--)/).filter(Boolean), "about:blank",
     ], { stdio: "ignore" });
     const b = new Browser(proc, port);
     await b.#connect();

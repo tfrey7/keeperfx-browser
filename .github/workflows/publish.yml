@@ -30,6 +30,8 @@ jobs:
       EMSDK_VERSION: "6.0.9"
       KFX_BUILD_JOBS: "4"
       KFX_HEAVY_BUILD_LOCK: ${{ github.workspace }}/../heavy-build.lock
+      # build_wasm.py's shared cache; its default is a folder on Tim's machine.
+      KFX_BUILD_CACHE: ${{ github.workspace }}/../kfx-build-cache
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,7 +54,7 @@ jobs:
             site/keeperfx.wasm
             site/reader.js
             site/reader.wasm
-          key: engine-${{ env.EMSDK_VERSION }}-${{ hashFiles('scripts/vendor.py', 'patches/**', 'native/**', 'tools/reader/**', 'scripts/build_wasm.py', 'scripts/build_reader.py') }}
+          key: engine-${{ env.EMSDK_VERSION }}-${{ hashFiles('scripts/vendor.py', 'patches/**', 'native/**', 'tools/reader/**', 'scripts/build_wasm.py', 'scripts/buildcache.py','scripts/build_reader.py') }}
 
       - name: Emscripten ${{ env.EMSDK_VERSION }}
         if: steps.engine-cache.outputs.cache-hit != 'true'

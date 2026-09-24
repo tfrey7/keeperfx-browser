@@ -50,6 +50,14 @@ and the time, and remove it when the build ends. If the file exists and is less 
 another heavy build (ut-browser's too) is running: wait for it, do not build alongside. Cap
 parallelism at `-j4`.
 
+`scripts/build_wasm.py` does all of that itself, and keeps what it builds in a cache shared by every
+checkout on the machine: `G:/Claude Stuff/.keeperfx-browser-cache` (or wherever `KFX_BUILD_CACHE`
+names, but never under `C:/Users`). It holds each compiled object, keyed by its source, flags and
+headers; the last few linked engines; and Emscripten's own cache (SDL3 and the system libraries),
+one per SDK version. So a fresh checkout with nothing changed gets the engine back in seconds
+without taking the lock, and one that changed a file recompiles only that and relinks. Nothing in
+the cache is committed; delete the folder to start cold.
+
 ## Never commit
 
 Original Dungeon Keeper files (`*.dat`, `*.tab`, `*.pal`, `*.sbk`, `*.wad`, `*.raw`, `*.dk`,

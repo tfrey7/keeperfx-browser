@@ -575,7 +575,13 @@ networking, movies and OpenGL stubbed. The proof is the build log and the `.wasm
 - `scripts/build_wasm.py` pins **Emscripten 6.0.9** (`$EMSDK`, `./emsdk` or `G:/emsdk` if it is
   that version, otherwise it installs `./emsdk`). There is no CMake on this machine, so it drives
   `emcc.py`/`em++.py` directly, one process per source, four at once, below-normal priority,
-  with its own `EM_CACHE` under `build/` (SDL3 and the system libraries are built there once).
+  with its own `EM_CACHE` (SDL3 and the system libraries are built there once).
+  - Since job 195 that `EM_CACHE`, every compiled object and the last few linked engines live in
+    one machine-wide cache outside every checkout (`scripts/buildcache.py`, adapted from
+    ut-browser's `buildlock.py`; the README says where). An object is keyed by the SDK version,
+    its flags, its source and every header its depfile names, with the checkout's path taken out;
+    an engine by all its objects and the link flags. A fresh checkout with nothing changed is
+    restored whole without the lock; a changed file recompiles alone and relinks.
   - `EMSDK_PYTHON` must point at the SDK's python: port builds spawn `emcc.exe`, which otherwise
     runs the Windows Store `python` stub and fails with 9009.
   - SDL3_mixer is compiled with only its built-in decoders (WAV, AIFF, VOC, AU, stb_vorbis,

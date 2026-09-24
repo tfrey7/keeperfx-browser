@@ -1,7 +1,7 @@
 """Compile the real KeeperFX engine to WebAssembly: site/keeperfx.js + site/keeperfx.wasm.
 
     py -3.10 scripts/vendor.py        # once: the pinned sources, patched
-    py -3.10 scripts/build_wasm.py    # the engine; incremental after the first run
+    py -3.10 scripts/build_wasm.py    # the engine; from the machine-wide cache when it can
 
 What goes in is upstream's own source list (src/**/*.c, *.cpp) with three switches for the web,
 all recorded in docs/PORTING-NOTES.md:
@@ -13,13 +13,17 @@ all recorded in docs/PORTING-NOTES.md:
 The script drives Emscripten's compiler directly, one process per source file; no CMake needed.
 It is a heavy build, so it takes the machine-wide lock the README describes, runs at most four
 compilers at once at below-normal priority, and writes everything it says to build/wasm-build.log.
+
+Every object it compiles, and every engine it links, goes into the machine-wide build cache
+(scripts/buildcache.py), which every checkout shares. A checkout whose sources, headers and flags
+all match a cached engine gets it back in seconds and takes no lock; one that changed a file
+compiles only what that change reaches, then links.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -28,6 +32,9 @@ from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import buildcache  # noqa: E402
+
 VENDOR = ROOT / "vendor"
 KFX = VENDOR / "keeperfx"
 BUILD = ROOT / "build"
@@ -116,8 +123,9 @@ def toolchain() -> tuple[list[str], list[str], dict]:
     if (root / ".emscripten").is_file():
         env["EM_CONFIG"] = str(root / ".emscripten")
     # Our own cache: the SDK may be shared with other projects, and SDL3's port and the system
-    # libraries are built into the cache. EMCC_CORES caps those builds at the same -j4.
-    env["EM_CACHE"] = str(BUILD / "em-cache")
+    # libraries are built into the cache. It is machine-wide, one per SDK version, so each is built
+    # once for every checkout. EMCC_CORES caps those builds at the same -j4.
+    env["EM_CACHE"] = str(buildcache.em_cache(EMSDK_VERSION))
     env["EMCC_CORES"] = str(jobs())
     say(f"emscripten {sdk_version(root)} at {root}")
     return [python, str(em / "emcc.py")], [python, str(em / "em++.py")], env
@@ -290,6 +298,26 @@ def components() -> list[tuple[str, list[Path], list[str]]]:
 
 # --- compiling -------------------------------------------------------------------------------
 
+#: What a link makes, and what the build cache keeps of a finished engine.
+OUTPUTS = ["keeperfx.js", "keeperfx.wasm", "keeperfx.js.symbols"]
+
+
+class Unit:
+    """One source to compile: where its object goes, how it is compiled, and its cache key."""
+
+    def __init__(self, name: str, src: Path, flags: list[str], emcc: list[str], empp: list[str]):
+        self.src, self.obj = src, object_for(name, src)
+        driver, std = (empp, "-std=gnu++20") if src.suffix == ".cpp" else (emcc, "-std=gnu11")
+        if name != "engine" and src.suffix == ".c":
+            std = "-std=gnu99"
+        self.flags = [std] + COMMON + flags
+        self.driver = driver
+        # The key names the driver (emcc or em++), not where this copy's SDK happens to live.
+        self.what = [Path(driver[-1]).stem] + self.flags
+        self.base = ""
+        self.cached: str | None = None  # the id of the cached object that serves it, if one does
+
+
 def object_for(name: str, src: Path) -> Path:
     try:
         rel = src.relative_to(ROOT)
@@ -298,46 +326,33 @@ def object_for(name: str, src: Path) -> Path:
     return OBJ / name / rel.with_suffix(rel.suffix + ".o")
 
 
-def up_to_date(obj: Path) -> bool:
-    """An object is current if it is newer than every file its depfile names."""
-    dep = obj.with_suffix(".d")
-    if not obj.is_file() or not dep.is_file():
-        return False
-    built = obj.stat().st_mtime
-    body = dep.read_text(encoding="utf-8").replace("\\\n", " ").partition(": ")[2]
-    for name in body.replace("\\ ", "\0").split():
-        path = Path(name.replace("\0", " "))
-        if not path.is_file() or path.stat().st_mtime > built:
-            return False
-    return True
+def plan(units: list[Unit], memo: dict) -> list[Unit]:
+    """Look every unit up in the shared cache; the ones it cannot serve."""
+    missing = []
+    for unit in units:
+        unit.base = buildcache.unit_key(EMSDK_VERSION, unit.what, unit.src, ROOT, memo)
+        unit.cached = buildcache.lookup(unit.base, ROOT, memo)
+        if unit.cached is None:
+            missing.append(unit)
+    return missing
 
 
-def compile_all(emcc: list[str], empp: list[str], env: dict) -> bool:
-    units = []
-    for name, sources, flags in components():
-        stamp = OBJ / name / "flags.json"
-        wanted = json.dumps([COMMON, flags])
-        if stamp.is_file() and stamp.read_text(encoding="utf-8") != wanted:
-            say(f"{name}: flags changed, recompiling it")
-            shutil.rmtree(OBJ / name)
-        stamp.parent.mkdir(parents=True, exist_ok=True)
-        stamp.write_text(wanted, encoding="utf-8")
-        for src in sources:
-            obj = object_for(name, src)
-            if not up_to_date(obj):
-                driver, std = (empp, "-std=gnu++20") if src.suffix == ".cpp" else (emcc, "-std=gnu11")
-                if name != "engine" and src.suffix == ".c":
-                    std = "-std=gnu99"
-                units.append((name, src, obj, driver + [std] + COMMON + flags))
-    total = sum(len(s) for _, s, _ in components())
-    say(f"{len(units)} of {total} sources to compile, {jobs()} at a time")
+def engine_key(units: list[Unit]) -> str:
+    """A finished engine's key: the objects in it, in link order, and how they are linked."""
+    return buildcache.key("engine", EMSDK_VERSION, LINK, [u.cached for u in units])
 
+
+def compile_units(units: list[Unit], env: dict) -> bool:
+    """Compile the units the cache could not serve, and keep each object in the cache."""
+    say(f"{len(units)} source(s) to compile, {jobs()} at a time")
+    memo: dict = {}
     failures = []
 
-    def one(unit):
-        name, src, obj, argv = unit
-        obj.parent.mkdir(parents=True, exist_ok=True)
-        proc = subprocess.run(argv + ["-MD", "-MF", str(obj.with_suffix(".d")), "-c", str(src), "-o", str(obj)],
+    def one(unit: Unit):
+        unit.obj.parent.mkdir(parents=True, exist_ok=True)
+        depfile = unit.obj.with_suffix(".d")
+        proc = subprocess.run(unit.driver + unit.flags + ["-MD", "-MF", str(depfile), "-MT", "x",
+                                                          "-c", str(unit.src), "-o", str(unit.obj)],
                               env=env, capture_output=True, text=True, errors="replace",
                               creationflags=getattr(subprocess, "BELOW_NORMAL_PRIORITY_CLASS", 0))
         return unit, proc
@@ -346,27 +361,26 @@ def compile_all(emcc: list[str], empp: list[str], env: dict) -> bool:
     with ThreadPoolExecutor(max_workers=jobs()) as pool:
         for done, future in enumerate(as_completed([pool.submit(one, u) for u in units]), 1):
             unit, proc = future.result()
-            name, src, obj, _ = unit
-            rel = src.relative_to(ROOT) if src.is_relative_to(ROOT) else src
+            rel = unit.src.relative_to(ROOT) if unit.src.is_relative_to(ROOT) else unit.src
             if proc.returncode != 0:
                 failures.append(rel)
-                obj.unlink(missing_ok=True)
+                unit.obj.unlink(missing_ok=True)
                 say(f"[{done}/{len(units)}] FAILED {rel}\n{proc.stderr.strip()}")
-            else:
-                say(f"[{done}/{len(units)}] {rel}")
-                if proc.stderr.strip():
-                    say(proc.stderr.strip())
+                continue
+            unit.cached = buildcache.keep(unit.base, unit.obj, unit.obj.with_suffix(".d"), ROOT, memo)
+            say(f"[{done}/{len(units)}] {rel}")
+            if proc.stderr.strip():
+                say(proc.stderr.strip())
     say(f"compiled in {round(time.time() - started)}s, {len(failures)} failure(s)")
     for rel in failures:
         say(f"  failed: {rel}")
     return not failures
 
 
-def link(empp: list[str], env: dict) -> bool:
-    objects = [str(object_for(name, src)) for name, sources, _ in components() for src in sources]
+def link(units: list[Unit], empp: list[str], env: dict) -> bool:
     SITE.mkdir(exist_ok=True)
     rsp = BUILD / "link.rsp"
-    rsp.write_text("\n".join(f'"{o}"' for o in objects), encoding="utf-8")
+    rsp.write_text("\n".join(f'"{u.obj}"' for u in units), encoding="utf-8")
     say("linking site/keeperfx.js + site/keeperfx.wasm")
     started = time.time()
     proc = subprocess.run(empp + [f"@{rsp}", "-o", str(SITE / "keeperfx.js")] + LINK,
@@ -379,10 +393,43 @@ def link(empp: list[str], env: dict) -> bool:
     if proc.returncode != 0:
         say("link FAILED")
         return False
+    say(f"linked in {round(time.time() - started)}s: {describe_wasm()}")
+    return True
+
+
+def describe_wasm() -> str:
     wasm = SITE / "keeperfx.wasm"
     digest = hashlib.sha256(wasm.read_bytes()).hexdigest()[:16]
-    say(f"linked in {round(time.time() - started)}s: {wasm.name} {wasm.stat().st_size:,} bytes, sha256 {digest}")
-    return True
+    return f"{wasm.name} {wasm.stat().st_size:,} bytes, sha256 {digest}"
+
+
+def build(emcc: list[str], empp: list[str], env: dict) -> bool:
+    """Restore the engine whole if the cache has it; else compile what it lacks, link, keep it."""
+    units = [Unit(name, src, flags, emcc, empp) for name, sources, flags in components() for src in sources]
+    started = time.time()
+    missing = plan(units, {})
+    say(f"build cache {buildcache.cache_dir()}: {len(units) - len(missing)} of {len(units)} "
+        f"objects cached, looked up in {time.time() - started:.1f}s")
+    if not missing and buildcache.restore(engine_key(units), SITE, OUTPUTS):
+        say(f"restored the engine from the build cache, no lock needed: {describe_wasm()}")
+        return True
+    take_lock()
+    try:
+        # Another checkout may have built what this one lacks while it waited for the lock.
+        missing = plan(units, {})
+        if not missing and buildcache.restore(engine_key(units), SITE, OUTPUTS):
+            say(f"restored the engine, built by another checkout while this one waited: {describe_wasm()}")
+            return True
+        for unit in units:
+            if unit.cached:
+                buildcache.fetch(unit.base, unit.cached, unit.obj)
+        if not compile_units(missing, env) or not link(units, empp, env):
+            return False
+        buildcache.store(engine_key(units), SITE, OUTPUTS)
+        buildcache.prune_objects()
+        return True
+    finally:
+        release_lock()
 
 
 def main() -> int:
@@ -392,14 +439,11 @@ def main() -> int:
         return 2
     BUILD.mkdir(exist_ok=True)
     _log_file = open(LOG, "w", encoding="utf-8")
+    started = time.time()
     say(f"keeperfx web build, {datetime.now().isoformat(timespec='seconds')}")
     emcc, empp, env = toolchain()
-    take_lock()
-    try:
-        ok = compile_all(emcc, empp, env) and link(empp, env)
-    finally:
-        release_lock()
-    say("BUILD OK" if ok else "BUILD FAILED")
+    ok = build(emcc, empp, env)
+    say(f"BUILD {'OK' if ok else 'FAILED'} in {time.time() - started:.1f}s")
     return 0 if ok else 1
 
 

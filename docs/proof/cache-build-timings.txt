@@ -1,0 +1,67 @@
+Shared build cache, job 195: the build logs (build/wasm-build.log) of four builds, in order.
+
+- build-cold: an empty cache; compiles everything, SDL3 and the system libraries included.
+- build-second: a fresh second clone, just vendored, nothing changed. The 22 s is the first read
+  of its ~1,900 freshly written source and header files; a second run there took 0.6 s.
+- build-touched: the same clone after appending a comment to one .c file: one compile, a relink,
+  and ~8 s copying the other 391 objects into its empty build/obj.
+- build-restored-for-proof: the comment taken out again; the engine comes back whole, and that is
+  the engine cache-menu-main.png shows booted to the main menu in the served page.
+
+== build-cold
+keeperfx web build, 2026-09-23T21:10:27
+emscripten 6.0.9 at G:\emsdk
+build cache G:\Claude Stuff\.keeperfx-browser-cache: 0 of 392 objects cached, looked up in 13.0s
+took the heavy-build lock at G:\Claude Stuff\.heavy-build.lock
+392 source(s) to compile, 4 at a time
+shared:INFO: (Emscripten: Running sanity checks)
+ports:INFO: retrieving port: zlib from https://github.com/madler/zlib/archive/refs/tags/v1.3.2.tar.gz
+ports:INFO: unpacking port: zlib
+system_libs:INFO: compiled 15 inputs in 7.68s
+ports:INFO: retrieving port: sdl3 from https://github.com/libsdl-org/SDL/archive/release-3.4.2.zip
+ports:INFO: unpacking port: sdl3
+system_libs:INFO: compiled 181 inputs in 56.66s
+compiled in 292s, 0 failure(s)
+linking site/keeperfx.js + site/keeperfx.wasm
+system_libs:INFO: compiled 4 inputs in 0.89s
+system_libs:INFO: compiled 1 inputs in 1.79s
+system_libs:INFO: compiled 5 inputs in 1.13s
+system_libs:INFO: compiled 2 inputs in 0.91s
+system_libs:INFO: compiled 1 inputs in 0.36s
+system_libs:INFO: compiled 1076 inputs in 45.32s
+system_libs:INFO: compiled 2 inputs in 0.92s
+system_libs:INFO: compiled 184 inputs in 8.55s
+system_libs:INFO: compiled 57 inputs in 17.76s
+system_libs:INFO: compiled 16 inputs in 4.39s
+system_libs:INFO: compiled 27 inputs in 7.11s
+linked in 103s: keeperfx.wasm 13,510,626 bytes, sha256 b744988b5003a7bc
+released the heavy-build lock
+BUILD OK in 410.1s
+
+== build-second
+keeperfx web build, 2026-09-23T21:18:04
+emscripten 6.0.9 at G:\emsdk
+build cache G:\Claude Stuff\.keeperfx-browser-cache: 392 of 392 objects cached, looked up in 22.2s
+restored the engine from the build cache, no lock needed: keeperfx.wasm 13,510,626 bytes, sha256 b744988b5003a7bc
+BUILD OK in 22.7s
+
+== build-touched
+keeperfx web build, 2026-09-23T21:18:42
+emscripten 6.0.9 at G:\emsdk
+build cache G:\Claude Stuff\.keeperfx-browser-cache: 391 of 392 objects cached, looked up in 0.6s
+took the heavy-build lock at G:\Claude Stuff\.heavy-build.lock
+1 source(s) to compile, 4 at a time
+[1/1] vendor\keeperfx\src\bflib_math.c
+compiled in 3s, 0 failure(s)
+linking site/keeperfx.js + site/keeperfx.wasm
+linked in 9s: keeperfx.wasm 13,510,626 bytes, sha256 b744988b5003a7bc
+released the heavy-build lock
+BUILD OK in 20.7s
+
+== build-restored-for-proof
+keeperfx web build, 2026-09-23T21:19:21
+emscripten 6.0.9 at G:\emsdk
+build cache G:\Claude Stuff\.keeperfx-browser-cache: 392 of 392 objects cached, looked up in 0.6s
+restored the engine from the build cache, no lock needed: keeperfx.wasm 13,510,626 bytes, sha256 b744988b5003a7bc
+BUILD OK in 0.7s
+

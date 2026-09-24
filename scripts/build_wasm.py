@@ -11,8 +11,9 @@ all recorded in docs/PORTING-NOTES.md:
 - LuaJIT         is replaced by PUC Lua 5.1.5 plus native/compat/lua_compat.h
 
 The script drives Emscripten's compiler directly, one process per source file; no CMake needed.
-It is a heavy build, so it takes the machine-wide lock the README describes, runs at most four
-compilers at once at below-normal priority, and writes everything it says to build/wasm-build.log.
+It is a heavy build, so it takes the machine-wide locks the README describes (its own and
+ut-browser's), runs at most four compilers at once at below-normal priority, and writes everything
+it says to build/wasm-build.log.
 
 Every object it compiles, and every engine it links, goes into the machine-wide build cache
 (scripts/buildcache.py), which every checkout shares. A checkout whose sources, headers and flags
@@ -21,6 +22,7 @@ compiles only what that change reaches, then links.
 """
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -50,6 +52,10 @@ EMSDK_REPO = "https://github.com/emscripten-core/emsdk.git"
 #: README rule: one heavy build machine-wide; a lock younger than this is live.
 HEAVY_LOCK = Path(os.environ.get("KFX_HEAVY_BUILD_LOCK", "G:/Claude Stuff/.heavy-build.lock"))
 LOCK_STALE_SECONDS = 2 * 60 * 60
+#: ut-browser's engine-build lock (its scripts/buildlock.py machine_lock): a byte lock the OS holds
+#: for the process that took it. Every KeeperFX build waits for it too, and holds it while it
+#: builds, so neither project's engine build runs alongside the other's.
+UT_LOCK = Path(os.environ.get("KFX_UT_BUILD_LOCK", "G:/Claude Stuff/.ut-browser-cache/build.lock"))
 #: README rule: -j4 at most.
 MAX_JOBS = 4
 
@@ -191,13 +197,13 @@ def take_lock() -> None:
                 HEAVY_LOCK.unlink(missing_ok=True)
                 continue
             if not told:
-                say(f"waiting for the heavy-build lock, held by: {holder}")
+                say(f"{stamp()} waiting for the heavy-build lock, held by: {holder}")
                 told = True
             time.sleep(30)
             continue
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(f"{who}\n{datetime.now().isoformat(timespec='seconds')}\n")
-        say(f"took the heavy-build lock at {HEAVY_LOCK}")
+        say(f"{stamp()} took the heavy-build lock at {HEAVY_LOCK}")
         return
 
 
@@ -205,9 +211,95 @@ def release_lock() -> None:
     try:
         if f"pid {os.getpid()}" in HEAVY_LOCK.read_text(encoding="utf-8"):
             HEAVY_LOCK.unlink()
-            say("released the heavy-build lock")
+            say(f"{stamp()} released the heavy-build lock")
     except OSError:
         pass
+
+
+def _try_byte_lock(handle) -> bool:
+    """Lock byte 0 of the file without waiting, exactly as ut-browser's buildlock.py does."""
+    handle.seek(0)
+    try:
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return True
+    except OSError:
+        return False
+
+
+def ut_holder(lock: Path) -> str:
+    """Who holds ut-browser's lock, from the note its holder writes beside it."""
+    try:
+        who = json.loads(lock.with_name(lock.name + ".who").read_text(encoding="utf-8"))
+        return f"{who['what']} (pid {who['pid']}, for {int(time.time() - who['since'])}s)"
+    except (OSError, ValueError, KeyError):
+        return "another build"
+
+
+def take_ut_lock(lock: Path = UT_LOCK, poll: float = 1.0, while_waiting=lambda: None):
+    """Wait for ut-browser's engine-build lock, take it and name ourselves in its .who note.
+
+    Returns the open handle; the lock lasts until release_ut_lock, or until this process dies.
+    while_waiting runs on every poll: the build uses it to keep its own heavy-build lock fresh,
+    so a long wait here does not make that lock look stale to the next KeeperFX build.
+    """
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    handle = open(lock, "a+b")
+    waited = time.time()
+    told = False
+    while not _try_byte_lock(handle):
+        if not told:
+            say(f"{stamp()} waiting for ut-browser's engine build lock, held by: {ut_holder(lock)}")
+            told = True
+        while_waiting()
+        time.sleep(poll)
+    lock.with_name(lock.name + ".who").write_text(json.dumps(
+        {"what": f"keeperfx-browser: {run_name()} build_wasm", "pid": os.getpid(), "since": time.time()}),
+        encoding="utf-8")
+    say(f"{stamp()} took ut-browser's engine build lock at {lock}"
+        + (f" after waiting {round(time.time() - waited)}s" if told else ""))
+    return handle
+
+
+def release_ut_lock(handle) -> None:
+    with contextlib.suppress(OSError):
+        handle.seek(0)
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    handle.close()
+    say(f"{stamp()} released ut-browser's engine build lock")
+
+
+@contextlib.contextmanager
+def heavy_build():
+    """Both machine-wide locks, always ours first and then ut-browser's, so two waiters never
+    hold one each and wait on each other."""
+    take_lock()
+    try:
+        ut = take_ut_lock(while_waiting=touch_lock)
+        try:
+            yield
+        finally:
+            release_ut_lock(ut)
+    finally:
+        release_lock()
+
+
+def touch_lock() -> None:
+    with contextlib.suppress(OSError):
+        os.utime(HEAVY_LOCK)
+
+
+def stamp() -> str:
+    return datetime.now().isoformat(timespec="seconds")
 
 
 # --- what is compiled ------------------------------------------------------------------------
@@ -424,9 +516,8 @@ def build(emcc: list[str], empp: list[str], env: dict) -> bool:
     if not missing and buildcache.restore(engine_key(units), SITE, OUTPUTS):
         say(f"restored the engine from the build cache, no lock needed: {describe_wasm()}")
         return True
-    take_lock()
-    try:
-        # Another checkout may have built what this one lacks while it waited for the lock.
+    with heavy_build():
+        # Another checkout may have built what this one lacks while it waited for the locks.
         missing = plan(units, {})
         if not missing and buildcache.restore(engine_key(units), SITE, OUTPUTS):
             say(f"restored the engine, built by another checkout while this one waited: {describe_wasm()}")
@@ -439,8 +530,6 @@ def build(emcc: list[str], empp: list[str], env: dict) -> bool:
         buildcache.store(engine_key(units), SITE, OUTPUTS)
         buildcache.prune_objects()
         return True
-    finally:
-        release_lock()
 
 
 def main() -> int:

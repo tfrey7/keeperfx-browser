@@ -1,6 +1,7 @@
 """Cheap checks on the wasm build's inputs. The build itself is heavy and lives in heavy_wasm.py."""
 import subprocess
 import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -73,6 +74,45 @@ class LockTest(unittest.TestCase):
     def test_anybody_elses_lock_is_waited_for(self):
         self.assertFalse(build_wasm.is_our_dead_lock(self.HELD, "run-b", alive=lambda pid: False))
         self.assertFalse(build_wasm.is_our_dead_lock("ut-browser job 7", "run-a", alive=lambda pid: False))
+
+
+class UtLockTest(unittest.TestCase):
+    """KeeperFX's build honours ut-browser's engine-build lock, and holds it the same way."""
+
+    # How ut-browser's scripts/buildlock.py takes its lock: byte 0 of the file, without waiting.
+    UT_TRY = ("import msvcrt, sys, time; h = open(sys.argv[1], 'a+b'); h.seek(0)\n"
+              "try: msvcrt.locking(h.fileno(), msvcrt.LK_NBLCK, 1)\n"
+              "except OSError: print('refused', flush=True); sys.exit(0)\n"
+              "print('took', flush=True); time.sleep(float(sys.argv[2]))")
+
+    def setUp(self):
+        if sys.platform != "win32":
+            self.skipTest("ut-browser's lock is msvcrt's on this machine")
+        self.lock = ROOT / "build" / "test-ut-lock" / "build.lock"
+        self.lock.parent.mkdir(parents=True, exist_ok=True)
+
+    def ut(self, hold: float) -> subprocess.Popen:
+        return subprocess.Popen([sys.executable, "-c", self.UT_TRY, str(self.lock), str(hold)],
+                                stdout=subprocess.PIPE, text=True)
+
+    def test_keeperfx_waits_for_a_ut_browser_build_and_then_shuts_it_out(self):
+        other = self.ut(1.5)
+        self.assertEqual(other.stdout.readline().strip(), "took")
+        started = time.time()
+        handle = build_wasm.take_ut_lock(self.lock, poll=0.1)
+        try:
+            self.assertGreater(time.time() - started, 1.0, "took the lock while ut-browser held it")
+            other.wait()
+            late = self.ut(0)
+            self.assertEqual(late.stdout.readline().strip(), "refused")
+            late.wait()
+            who = (self.lock.parent / "build.lock.who").read_text(encoding="utf-8")
+            self.assertIn("keeperfx-browser", who)
+        finally:
+            build_wasm.release_ut_lock(handle)
+        after = self.ut(0)
+        self.assertEqual(after.stdout.readline().strip(), "took")
+        after.wait()
 
 
 if __name__ == "__main__":

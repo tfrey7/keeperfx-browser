@@ -1,0 +1,68 @@
+One engine build at a time across KeeperFX and ut-browser, job 207: the logs of three runs.
+
+The ut-browser side is scratch ut_hold.py (below), which takes ut-browser's lock through ut-browser's
+own scripts/buildlock.py machine_lock and holds it, as its engine build does. The KeeperFX side is
+scripts/build_wasm.py with one source file changed, so it compiles that file and relinks.
+(Its own heavy-build lock was pointed at a scratch file for these runs: an abandoned, empty
+G:/Claude Stuff/.heavy-build.lock was blocking every KeeperFX build until it aged out.)
+
+== 0. nothing changed: restored from the cache, neither lock taken
+keeperfx web build, 2026-09-24T05:54:03
+emscripten 6.0.9 at G:\emsdk
+build cache G:\Claude Stuff\.keeperfx-browser-cache: 392 of 392 objects cached, looked up in 14.0s
+restored the engine from the build cache, no lock needed: keeperfx.wasm 13,565,434 bytes, sha256 70318273c4b1250e
+BUILD OK in 14.2s
+
+== 1. ut-browser holds its lock for 60 s; a KeeperFX build started 4 s later waits for it
+-- ut-browser
+2026-09-24T06:05:14 ut-browser: asking for the engine build lock in G:\Claude Stuff\.ut-browser-cache
+2026-09-24T06:05:14 ut-browser: holding the engine build lock for 60s, as a compile would
+2026-09-24T06:06:14 ut-browser: done, releasing the engine build lock
+2026-09-24T06:06:14 ut-browser: released
+-- keeperfx (build/wasm-build.log)
+keeperfx web build, 2026-09-24T06:05:18
+emscripten 6.0.9 at G:\emsdk
+build cache G:\Claude Stuff\.keeperfx-browser-cache: 391 of 392 objects cached, looked up in 0.6s
+2026-09-24T06:05:19 took the heavy-build lock at G:\Claude Stuff\fleet-work\fleet-v2-run-p9668-oeAKPX\scratch\heavy-build.lock
+2026-09-24T06:05:19 waiting for ut-browser's engine build lock, held by: ut-browser: the engine cone (keeperfxbrowser lock proof) (pid 48952, for 4s)
+2026-09-24T06:06:14 took ut-browser's engine build lock at G:\Claude Stuff\.ut-browser-cache\build.lock after waiting 56s
+1 source(s) to compile, 4 at a time
+compiled in 1s, 0 failure(s)
+linking site/keeperfx.js + site/keeperfx.wasm
+em++: warning: sdl3 port is still experimental [-Wexperimental]
+linked in 7s: keeperfx.wasm 13,565,434 bytes, sha256 70318273c4b1250e
+2026-09-24T06:06:31 released ut-browser's engine build lock
+2026-09-24T06:06:31 released the heavy-build lock
+BUILD OK in 72.9s
+
+== 2. the reverse: while that KeeperFX build holds the lock, ut-browser asks for it and waits
+-- ut-browser (its own buildlock.py prints the two middle lines)
+2026-09-24T06:06:20 ut-browser: asking for the engine build lock in G:\Claude Stuff\.ut-browser-cache
+waiting for the engine build lock: keeperfx-browser: keeperfxbrowser build_wasm (pid 46084, for 5s) is compiling
+took the engine build lock after 11s
+2026-09-24T06:06:31 ut-browser: holding the engine build lock for 5s, as a compile would
+2026-09-24T06:06:36 ut-browser: done, releasing the engine build lock
+2026-09-24T06:06:36 ut-browser: released
+
+== ut_hold.py
+"""Hold ut-browser's engine build lock through ut-browser's own code, as its build_wasm.py does."""
+import sys
+import time
+from datetime import datetime
+
+sys.dont_write_bytecode = True
+sys.path.insert(0, "G:/Claude Stuff/ut-browser/scripts")
+import buildlock  # noqa: E402
+
+
+def log(msg):
+    print(f"{datetime.now().isoformat(timespec='seconds')} ut-browser: {msg}", flush=True)
+
+
+hold = float(sys.argv[1])
+log(f"asking for the engine build lock in {buildlock.cache_dir()}")
+with buildlock.machine_lock("ut-browser: the engine cone (keeperfxbrowser lock proof)"):
+    log(f"holding the engine build lock for {hold:.0f}s, as a compile would")
+    time.sleep(hold)
+    log("done, releasing the engine build lock")
+log("released")

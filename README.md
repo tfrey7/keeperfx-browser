@@ -45,12 +45,22 @@ py -3.10 -m unittest discover -s tests -v
 
 ## One heavy build at a time
 
-Before compiling the engine, create `G:/Claude Stuff/.heavy-build.lock` holding your job number
-and the time, and remove it when the build ends. If the file exists and is less than two hours old,
-another heavy build (ut-browser's too) is running: wait for it, do not build alongside. Cap
-parallelism at `-j4`.
+Only one engine build runs on this machine at a time, KeeperFX's or ut-browser's. There are two
+locks, and a KeeperFX build holds both while it compiles, always taken in this order:
 
-`scripts/build_wasm.py` does all of that itself, and keeps what it builds in a cache shared by every
+1. **KeeperFX's own**: `G:/Claude Stuff/.heavy-build.lock`, a file holding who made it and when,
+   removed when the build ends. If it exists and is less than two hours old, another KeeperFX build
+   is running: wait for it.
+2. **ut-browser's**: `G:/Claude Stuff/.ut-browser-cache/build.lock` (or wherever
+   `KFX_UT_BUILD_LOCK` names), the lock ut-browser's own `scripts/buildlock.py` takes. It is not a
+   file that exists or not: the build locks its first byte, and the operating system lets go when
+   that process ends, however it ends. `build.lock.who` beside it names the holder. A KeeperFX
+   build waits for it and then takes it, so ut-browser's engine builds wait for KeeperFX's in turn.
+
+Cap parallelism at `-j4`.
+
+`scripts/build_wasm.py` does all of that itself, logging the time it waits for, takes and releases
+each lock, and keeps what it builds in a cache shared by every
 checkout on the machine: `G:/Claude Stuff/.keeperfx-browser-cache` (or wherever `KFX_BUILD_CACHE`
 names, but never under `C:/Users`). It holds each compiled object, keyed by its source, flags and
 headers; the last few linked engines; and Emscripten's own cache (SDL3 and the system libraries),

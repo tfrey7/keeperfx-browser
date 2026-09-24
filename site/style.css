@@ -122,3 +122,54 @@ ul.changes { list-style: none; margin: 0; padding: 0; }
 ul.changes li { padding: 0.2rem 0; border-bottom: 1px solid #2e251b; }
 ul.changes time { color: var(--dim); font-family: Consolas, "Cascadia Mono", monospace; margin-right: 0.5rem; }
 ul.changes a.commit { color: var(--dim); font-family: Consolas, "Cascadia Mono", monospace; font-size: 0.85em; }
+
+/* The engine page: the game fills the window below a thin bar; the log is a drawer beside it. */
+html.game-page, html.game-page body { height: 100%; overflow: hidden; }
+html.game-page body { display: flex; flex-direction: column; background: #000; }
+
+.game-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 0.75rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--edge);
+}
+.game-bar .brand { color: var(--gold); font-weight: 700; text-decoration: none; letter-spacing: 0.02em; }
+.game-bar .status { flex: 1; margin: 0; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.game-bar button { padding: 0.25rem 0.8rem; font-size: 0.9rem; }
+.game-bar button[aria-expanded="true"] { background: var(--gold); color: #1b140c; }
+.game-bar button[hidden] { display: none; }
+
+.game-body { flex: 1; display: flex; min-height: 0; }
+
+.stage {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #000;
+}
+/* view.js sets --fit-w and --fit-h; !important because SDL sets the canvas's inline size too. */
+.stage canvas {
+  display: block;
+  width: var(--fit-w, 640px) !important;
+  height: var(--fit-h, 480px) !important;
+  image-rendering: pixelated;
+  outline: none;
+}
+
+.log-panel {
+  width: min(34rem, 45vw);
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 1rem;
+  background: var(--panel);
+  border-left: 1px solid var(--edge);
+  overflow: hidden;
+}
+.log-panel[hidden] { display: none; }
+.log-panel h2 { margin: 0; }
+.log-panel .engine-view { flex: 1; overflow: auto; white-space: pre; }
+.log-panel footer { margin-top: 0.75rem; }

@@ -1,32 +1,38 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="game-page">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>KeeperFX engine boot</title>
+  <title>KeeperFX</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main>
-  <h1>KeeperFX engine</h1>
-  <p class="lede">The real KeeperFX engine, compiled to WebAssembly, starting in this page.
-    Its own log is mirrored below and in the browser console.</p>
+<header class="game-bar">
+  <a class="brand" href="./" title="Back to your game files">KeeperFX</a>
+  <p class="status" id="engine-status">Loading the engine…</p>
+  <button type="button" class="quiet" id="fullscreen" title="Play in full screen (hold Esc to leave)">Full screen</button>
+  <button type="button" class="quiet" id="toggle-log" aria-expanded="false" aria-controls="log-panel">Engine log</button>
+</header>
 
-  <section class="panel">
-    <p class="status" id="engine-status">Loading the engine…</p>
-    <canvas id="canvas" width="640" height="480" oncontextmenu="event.preventDefault()"></canvas>
+<div class="game-body">
+  <div class="stage" id="stage">
+    <canvas id="canvas" width="640" height="480" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+  </div>
+
+  <aside class="log-panel" id="log-panel" hidden>
     <h2>Engine log</h2>
+    <p class="promise">The real KeeperFX engine, compiled to WebAssembly. Its own log is mirrored
+      here and in the browser console.</p>
     <pre class="engine-view" id="engine-log"></pre>
-  </section>
-
-  <footer>
-    KeeperFX is free software under the GNU GPL v2:
-    <a href="https://github.com/dkfans/keeperfx">source code</a>.
-    Dungeon Keeper is © Electronic Arts; you need your own copy.
-    <br>This site's source: <a href="https://github.com/tfrey7/keeperfx-browser">github.com/tfrey7/keeperfx-browser</a>
-    · <a href="changes.html">Recent changes</a>
-  </footer>
-</main>
+    <footer>
+      KeeperFX is free software under the GNU GPL v2:
+      <a href="https://github.com/dkfans/keeperfx">source code</a>.
+      Dungeon Keeper is © Electronic Arts; you need your own copy.
+      <br>This site's source: <a href="https://github.com/tfrey7/keeperfx-browser">github.com/tfrey7/keeperfx-browser</a>
+      · <a href="changes.html">Recent changes</a>
+    </footer>
+  </aside>
+</div>
 <script src="keeperfx.js"></script>
 <script type="module" src="js/engine.js"></script>
 </body>

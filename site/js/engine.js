@@ -8,19 +8,35 @@
 
 import { ROOT, SAVES, mountStore, mountSaves, persistSaves } from "./storage.js";
 import { loadKfxData } from "./kfxdata.js";
+import { setUpView } from "./view.js";
 
 const LOG_FILE = `${ROOT}/keeperfx.log`;
 const status = document.getElementById("engine-status");
 const logView = document.getElementById("engine-log");
 
+setUpView({
+  stage: document.getElementById("stage"),
+  canvas: document.getElementById("canvas"),
+  fullscreenButton: document.getElementById("fullscreen"),
+  logButton: document.getElementById("toggle-log"),
+  logPanel: document.getElementById("log-panel"),
+});
+
 function show(line, isError = false) {
   (isError ? console.error : console.log)(line);
+  // Follows the newest line unless the reader has scrolled back up the log.
+  const atEnd = logView.scrollTop + logView.clientHeight >= logView.scrollHeight - 4;
   logView.append(`${line}\n`);
+  if (atEnd) logView.scrollTop = logView.scrollHeight;
 }
 
 function setStatus(text, kind = "") {
   status.textContent = text;
   status.className = `status ${kind}`.trim();
+  // When the engine fails, its log is the explanation: open the drawer.
+  if (kind === "bad" && document.getElementById("log-panel").hidden) {
+    document.getElementById("toggle-log").click();
+  }
 }
 
 // Mirrors whatever the engine has appended to its log since the last look.

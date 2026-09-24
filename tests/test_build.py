@@ -25,6 +25,16 @@ class PinTest(unittest.TestCase):
         self.assertLessEqual(build_wasm.MAX_JOBS, 4)
 
 
+class SoundTest(unittest.TestCase):
+    def test_mixer_decodes_mp3_for_the_mentors_speech(self):
+        self.assertIn("-DDECODER_MP3_DRMP3", build_wasm.MIXER_DECODERS)
+
+    def test_engine_keeps_its_own_dr_mp3_private_so_the_two_do_not_clash(self):
+        flags = build_wasm.FILE_FLAGS["bflib_sndlib.cpp"]
+        self.assertIn("-DDRMP3_API=static", flags)
+        self.assertIn("-DDRMP3_PRIVATE=static", flags)
+
+
 class PatchTest(unittest.TestCase):
     def test_every_patch_is_listed_in_the_porting_notes(self):
         for patch in PATCHES:

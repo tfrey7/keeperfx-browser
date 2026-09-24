@@ -585,8 +585,11 @@ networking, movies and OpenGL stubbed. The proof is the build log and the `.wasm
   - `EMSDK_PYTHON` must point at the SDK's python: port builds spawn `emcc.exe`, which otherwise
     runs the Windows Store `python` stub and fails with 9009.
   - SDL3_mixer is compiled with only its built-in decoders (WAV, AIFF, VOC, AU, stb_vorbis,
-    dr_flac); SDL3_image with PNG (stb) and BMP. Not dr_mp3: the engine compiles its own copy in
-    `bflib_sndlib.cpp` and decodes MP3 itself, and the two copies clash at link.
+    dr_flac, dr_mp3); SDL3_image with PNG (stb) and BMP. The engine compiles its own dr_mp3 in
+    `bflib_sndlib.cpp` too, and the two copies clashed at link, so job 2 left MP3 out of the
+    mixer. Since job 200 that one file is compiled with `-DDRMP3_API=static
+    -DDRMP3_PRIVATE=static` (`FILE_FLAGS` in `build_wasm.py`): the engine's copy stays private
+    to it and the mixer's is the only one the linker sees. No patch to either.
   - `deps/centitoml/toml_conv.c` is not compiled on its own: `toml_api.c` `#include`s it, as
     upstream's Makefile has it.
   - `ver_defs.h` and the window icon C array (both CMake-generated upstream) are generated into
@@ -706,7 +709,10 @@ and the game's cursor follows the pointer. Screenshots `docs/proof/level-*.png`.
 Not yet proved (the job ran out of time; filed as follow-ups): imps digging tagged earth, a built
 room, a creature from the portal, a fight, and the hand picking up an imp. Also open:
 
-- **The mentor's spoken briefings are silent**: `play_streamed_sample: Cannot load
-  "./campgns/keeporig_eng/good01.mp3": Audio data is in unknown/unsupported/corrupt format`.
-  SDL3_mixer is built without MP3 (§7, job 2: dr_mp3 clashed with the engine's own copy at
-  link). Music (ogg) and effects (OpenAL) load.
+- ~~The mentor's spoken briefings are silent~~ (`Cannot load "./campgns/keeporig_eng/good01.mp3"`):
+  fixed by job 200, SDL3_mixer now decodes MP3 (§7). The briefings are MP3 and play on the land
+  view while the pointer rests on a land, through SDL_mixer's speech track.
+  `scripts/prove_speech.mjs` proves it in the page as served: it takes the music away, rests the
+  pointer on Eversmile, and samples SDL's own audio context. The old build logs `Cannot load`
+  and its mixer stays at 0.000 for all 8 seconds; the new one plays good01.mp3 at peaks up to
+  about 0.49 (`docs/proof/speech-levels.txt`, `speech-landview.png`).

@@ -259,6 +259,19 @@ ENGINE_INCLUDES = [
 ]
 
 
+#: SDL_mixer's built-in decoders; no external codec libraries. MP3 is for the mentor's speech
+#: (MIX_LoadAudio in bflib_sndlib.cpp).
+MIXER_DECODERS = ["-DDECODER_WAV", "-DDECODER_AIFF", "-DDECODER_VOC", "-DDECODER_AU",
+                  "-DDECODER_OGGVORBIS_STB", "-DDECODER_FLAC_DRFLAC", "-DDECODER_MP3_DRMP3"]
+
+#: Flags for one source file only, on top of its component's.
+FILE_FLAGS = {
+    # bflib_sndlib.cpp compiles its own copy of dr_mp3 for custom sounds; SDL_mixer compiles
+    # another for speech. Static here, the engine's copy never meets the mixer's at link.
+    "bflib_sndlib.cpp": ["-DDRMP3_API=static", "-DDRMP3_PRIVATE=static"],
+}
+
+
 def components() -> list[tuple[str, list[Path], list[str]]]:
     """(name, sources, flags) for the engine and each library it links."""
     inc = lambda dirs: [f"-I{d}" for d in dirs]  # noqa: E731
@@ -276,10 +289,7 @@ def components() -> list[tuple[str, list[Path], list[str]]]:
         ("astronomy", [VENDOR / "astronomy" / "astronomy.c"], []),
         ("SDL_mixer", sorted((mixer / "src").glob("*.c")),
          ["-DBUILD_SDL", "-DSDL_BUILD_MAJOR_VERSION=3", "-DSDL_BUILD_MINOR_VERSION=2",
-          "-DSDL_BUILD_MICRO_VERSION=4", "-DDECODER_WAV", "-DDECODER_AIFF", "-DDECODER_VOC",
-          "-DDECODER_AU", "-DDECODER_OGGVORBIS_STB", "-DDECODER_FLAC_DRFLAC"]
-         # No DECODER_MP3_DRMP3: the engine compiles its own dr_mp3 (bflib_sndlib.cpp) and the
-         # two copies clash at link. The engine decodes MP3 itself.
+          "-DSDL_BUILD_MICRO_VERSION=4"] + MIXER_DECODERS
          + inc([mixer / "include", mixer / "src", mixer / "src" / "codecs"])),
         ("SDL_image", [image / "src" / f for f in (
             "IMG.c", "IMG_WIC.c", "IMG_ani.c", "IMG_anim_encoder.c", "IMG_anim_decoder.c", "IMG_avif.c",
@@ -405,7 +415,8 @@ def describe_wasm() -> str:
 
 def build(emcc: list[str], empp: list[str], env: dict) -> bool:
     """Restore the engine whole if the cache has it; else compile what it lacks, link, keep it."""
-    units = [Unit(name, src, flags, emcc, empp) for name, sources, flags in components() for src in sources]
+    units = [Unit(name, src, flags + FILE_FLAGS.get(src.name, []), emcc, empp)
+             for name, sources, flags in components() for src in sources]
     started = time.time()
     missing = plan(units, {})
     say(f"build cache {buildcache.cache_dir()}: {len(units) - len(missing)} of {len(units)} "

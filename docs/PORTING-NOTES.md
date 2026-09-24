@@ -706,8 +706,36 @@ and the game's cursor follows the pointer. Screenshots `docs/proof/level-*.png`.
 | In a level the game cursor ran off to the canvas edge and the view scrolled off the map | engine input, patch `0003-inputctrl-follow-pointer-on-emscripten.patch` | In game the engine grabs the mouse and moves its cursor by deltas, recentring the OS pointer whenever it nears the window edge. A browser cannot warp the pointer, so every recentre turned the next motion into a bogus jump. Under `__EMSCRIPTEN__` the motion handler sets the game cursor from the pointer's canvas position instead. |
 | One of 2,155 data fetches never completed once, so the page sat at "158 of 158 MB" | local server, then the live site | It recurred on the live site. `kfxdata.js` now abandons any download that goes 20 s without a byte (waiting for the headers included) and tries it again, up to 4 times with a doubling pause; server errors (5xx, 429) are retried too, a 404 is not. |
 
-Not yet proved (the job ran out of time; filed as follow-ups): imps digging tagged earth, a built
-room, a creature from the portal, a fight, and the hand picking up an imp. Also open:
+Job 201 played on, in the page as served, with the player's GOG copy, by mouse and keyboard only
+(no engine change was needed):
+
+- **Digging**: with the hand, a left-drag over earth tags it (`level-dig-tagged.png`); the imps dig
+  it out within seconds (`level-dig-dug.png`).
+- **Rooms**: the Treasure Room from the room panel, clicked tile by tile over claimed floor; at
+  nine tiles the mentor says "Expertly done" and asks for gold (`level-treasure-room.png`). The
+  gold vein east, tagged, mines 9,000 gold; the Lair follows (`level-lair.png`).
+- **The hand**: a left-click on the Creature Panel's idle-imp count picks an imp up, it dangles
+  from the hand, and a right-click on floor drops it (`level-hand-imp.png`,
+  `level-hand-dropped.png`). Over a wall the hand turns back to a pointer and will not drop.
+- **The portal**: a tunnel tagged from the heart north to the portal claims it; a fly comes
+  through (picked up in the hand, `level-hand-fly.png`), then a beetle, announced by the mentor
+  and sleeping in the Lair (`level-portal-beetle.png`).
+- **Fast forward** (Ctrl+=, the engine's own frame-skip key) works in the page, "Fast Forward x2"
+  and on, which is how the tutorial's timers were got through.
+
+Things a proof driver must know: the camera is made repeatable by opening the map (top-left book)
+and clicking the heart, which faces it north; synthetic DOM key events stick SDL's modifier
+state, so keys go through CDP's `Input.dispatchKeyEvent` with a real `code` (`ControlLeft`,
+`Equal`); and room placement wants one click per tile, not a drag.
+
+- **Heroes and the fight**: a Hatchery follows, the script sends a thief party and a tunneller
+  ("Intruders approach", `level-intruders.png`), then the Lord of the Land (`level-lord-arrives.png`);
+  the player's creatures kill them all and the level is won: "Success! The land is yours"
+  (`level-won.png`). At fast forward x8 the fights were over between screenshots, so the combat
+  itself is proved by its outcome (the heroes dead, the win) rather than a picture mid-blow; a
+  picture of a blow wants a run at normal speed with the camera on the heart.
+
+Also open:
 
 - ~~The mentor's spoken briefings are silent~~ (`Cannot load "./campgns/keeporig_eng/good01.mp3"`):
   fixed by job 200, SDL3_mixer now decodes MP3 (§7). The briefings are MP3 and play on the land

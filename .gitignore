@@ -8,3 +8,4 @@ __pycache__/
 *.log
 .env
 site/reader.js
+site/keeperfx.js

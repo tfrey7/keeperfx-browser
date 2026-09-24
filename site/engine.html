@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KeeperFX engine boot</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <h1>KeeperFX engine</h1>
+  <p class="lede">The real KeeperFX engine, compiled to WebAssembly, starting in this page.
+    Its own log is mirrored below and in the browser console.</p>
+
+  <section class="panel">
+    <p class="status" id="engine-status">Loading the engine…</p>
+    <canvas id="canvas" width="640" height="480" oncontextmenu="event.preventDefault()"></canvas>
+    <h2>Engine log</h2>
+    <pre class="engine-view" id="engine-log"></pre>
+  </section>
+
+  <footer>
+    KeeperFX is free software under the GNU GPL v2:
+    <a href="https://github.com/dkfans/keeperfx">source code</a>.
+    Dungeon Keeper is © Electronic Arts; you need your own copy.
+  </footer>
+</main>
+<script src="keeperfx.js"></script>
+<script type="module" src="js/engine.js"></script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+diff --git a/src/bflib_crash.c b/src/bflib_crash.c
+index 11885b0..5063583 100644
+--- a/src/bflib_crash.c
++++ b/src/bflib_crash.c
+@@ -26,7 +26,7 @@
+ #include "bflib_crash.h"
+ #include <signal.h>
+ #include <stdarg.h>
+-#if !defined(_WIN32)
++#if !defined(_WIN32) && !defined(__EMSCRIPTEN__) // Emscripten has no execinfo/backtrace
+ #define BF_POSIX_CRASH 1
+ #endif
+ #if defined(_WIN32)
+@@ -97,7 +97,7 @@ static const char* sigstr(int s)
+ #ifdef SIGPWR
+     case SIGPWR : return "Power failure restart (System V)";
+ #endif
+-#else
++#elif defined(SIGBREAK) // Win32 only; not in Emscripten
+     case SIGBREAK : return "Ctrl-Break (Win32)";
+ #endif
+     }
+@@ -592,7 +592,7 @@ void LbErrorParachuteInstall(void)
+ #ifdef SIGSYS
+     signal(SIGSYS,ctrl_handler);
+ #endif
+-#else
++#elif defined(SIGBREAK) // Win32 only; not in Emscripten
+     signal(SIGBREAK,ctrl_handler);
+ #endif
+ #endif

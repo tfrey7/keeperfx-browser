@@ -559,11 +559,40 @@ networking, movies and OpenGL stubbed. The proof is the build log and the `.wasm
 
 | Switch / patch | What it removes | Why | Brought back in |
 |---|---|---|---|
-| `KFX_NO_NET` (`net_stub.c`) | enet6, curl, UPnP, NAT-PMP, LAN, matchmaking | no UDP in browsers | later phase (WebRTC/WebSocket) |
-| `KFX_NO_MOVIES` | ffmpeg, the intro/outro movies | size; no port | later phase (smacker-only ffmpeg) |
-| `KFX_NO_OPENGL` | the GL 3.3 renderer and its thread | GL 3.3 core ≠ WebGL2; needs threads | not planned; software renderer |
-| LuaJIT → Lua 5.1.5 + compat | LuaJIT | JIT cannot target wasm | permanent |
-| `bflib_crash.c` POSIX guard | backtrace/sigaction crash handler | no execinfo in Emscripten | permanent |
+| `KFX_NO_NET`: `native/stubs/net_stub.c` replaces `bflib_enet.cpp`, `net_lan.c`, `net_holepunch.c`, `net_matchmaking.c`, `net_portforward.cpp` in the source list (no upstream edit) | enet6, curl, UPnP, NAT-PMP, LAN, matchmaking; `InitEnetSP` returns NULL so the engine's own code reports no network | no UDP in browsers | later phase (WebRTC/WebSocket) |
+| `KFX_NO_MOVIES`: patch `0002-fmvids-kfx-no-movies-switch.patch` | ffmpeg includes and the movie player in `bflib_fmvids.cpp`; `play_smk` logs and returns false. The FLIC recorder in the same file is kept | size; no port | later phase (smacker-only ffmpeg) |
+| LuaJIT → Lua 5.1.5 + `native/compat/lua_compat.h` (force-included, no upstream edit) | LuaJIT; the header adds `LUA_OK`, `lua_rawlen`, `luaL_setfuncs`, `luaL_newlib` | JIT cannot target wasm | permanent |
+| `bflib_crash.c` POSIX guard: patch `0001-crash-no-posix-handler-on-emscripten.patch` | backtrace/sigaction crash handler, off under `__EMSCRIPTEN__`; the two Win32 `SIGBREAK` branches become `#elif defined(SIGBREAK)` | no execinfo or `SIGBREAK` in Emscripten | permanent |
+| OpenAL Soft MSADPCM tags: `native/compat/al_compat.h` (force-included, no upstream edit) | nothing: defines `AL_FORMAT_{MONO,STEREO}_MSADPCM_SOFT` (0x1302/0x1303), which `bflib_sndlib.cpp` uses only as WAV-reader tags, never passed to OpenAL | Emscripten's OpenAL lacks the extension | permanent |
+| OpenGL: **no switch needed so far** | nothing: the GL renderer and glad are compiled as they are and never selected (software is the default) | fewer upstream edits than `KFX_NO_OPENGL` | — |
+
+### How job 2 built it
+
+- `scripts/vendor.py` fetches every source at a pinned commit (or sha256 for the Lua tarball and
+  astronomy's two files) into `vendor/`, resets it, and applies `patches/keeperfx/*.patch`.
+  Patches live outside `vendor/`, which is gitignored.
+- `scripts/build_wasm.py` pins **Emscripten 6.0.9** (`$EMSDK`, `./emsdk` or `G:/emsdk` if it is
+  that version, otherwise it installs `./emsdk`). There is no CMake on this machine, so it drives
+  `emcc.py`/`em++.py` directly, one process per source, four at once, below-normal priority,
+  with its own `EM_CACHE` under `build/` (SDL3 and the system libraries are built there once).
+  - `EMSDK_PYTHON` must point at the SDK's python: port builds spawn `emcc.exe`, which otherwise
+    runs the Windows Store `python` stub and fails with 9009.
+  - SDL3_mixer is compiled with only its built-in decoders (WAV, AIFF, VOC, AU, stb_vorbis,
+    dr_flac); SDL3_image with PNG (stb) and BMP. Not dr_mp3: the engine compiles its own copy in
+    `bflib_sndlib.cpp` and decodes MP3 itself, and the two copies clash at link.
+  - `deps/centitoml/toml_conv.c` is not compiled on its own: `toml_api.c` `#include`s it, as
+    upstream's Makefile has it.
+  - `ver_defs.h` and the window icon C array (both CMake-generated upstream) are generated into
+    `build/generated/`.
+- Output: `site/keeperfx.js` + `site/keeperfx.wasm` (gitignored), log in `build/wasm-build.log`.
+- `site/engine.html` loads them, mounts the player's kept files (`storage.js`), `chdir`s to
+  `/keeperfx` and calls `main()`. KeeperFX logs only to a file, `/keeperfx/keeperfx.log`, flushed
+  per line; the page mirrors each new line to the console and the page.
+- Proof (`scripts/prove_engine.mjs`, headless Chrome against the served page): the engine prints
+  its banner `Dungeon Keeper FX ver 1.4.0.0 web (standard release) git:211438f`, then stops at
+  `resolve_startup_config: Configuration load error` for want of `keeperfx.cfg` and game files.
+  Screenshot, page console and build log in `docs/proof/engine-*`.
+- Known gap: when `main()` returns without `exit()`, the page still says "The engine is running."
 
 ---
 

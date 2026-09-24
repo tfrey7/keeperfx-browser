@@ -1,0 +1,7 @@
+page: 0 of the player's files are linked into /keeperfx; starting main()
+[keeperfx.log] Dungeon Keeper FX ver 1.4.0.0 web (standard release) git:211438f
+[keeperfx.log] LOG CREATED  @ 20:11:30  23-09-2026
+[keeperfx.log] Sync: [0] LbMouseChangeMoveRatio: New ratio 256x256
+[keeperfx.log] Warning: Mods order file "mods/load_order.cfg" doesn't exist or is too small.
+[keeperfx.log] Warning: Base config file "keeperfx.cfg" doesn't exist or is too small.
+[keeperfx.log] Error: [0] resolve_startup_config: Configuration load error.

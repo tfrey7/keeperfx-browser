@@ -71,9 +71,23 @@
     <h2 style="margin-top:1.25rem">What the engine sees</h2>
     <p class="promise">Listed by a small compiled reader, from the folders the engine reads.</p>
     <pre class="engine-view" id="engine-view"></pre>
+    <p class="promise" id="saves-status"></p>
     <div class="buttons">
       <a class="button" id="start" href="engine.html">Start KeeperFX</a>
       <button class="danger" id="forget">Forget my files</button>
+    </div>
+  </section>
+
+  <!-- "Forget my files" when saved games or settings are kept too: keep them, or clear them. -->
+  <section id="forget-ask" class="panel" hidden>
+    <h2>Forget your Dungeon Keeper files?</h2>
+    <p id="forget-saves-status"></p>
+    <p class="promise">Kept saves wait here for when you choose your folder again. They never
+      leave this browser either.</p>
+    <div class="buttons">
+      <button id="forget-keep">Forget files, keep my saves</button>
+      <button class="danger" id="forget-all">Forget files and saves</button>
+      <button class="quiet" id="forget-cancel">Cancel</button>
     </div>
   </section>
 

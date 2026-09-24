@@ -4,10 +4,10 @@
 
 import { REQUIRED, OPTIONAL, matchFiles } from "./manifest.js";
 import { listZip, readZipEntry } from "./unzip.js";
-import { ROOT, mountStore, keepFiles, forgetFiles } from "./storage.js";
+import { ROOT, mountStore, keepFiles, forgetFiles, countSaves, forgetSaves } from "./storage.js";
 
 const $ = (id) => document.getElementById(id);
-const panels = ["loading", "ask", "missing", "ready"];
+const panels = ["loading", "ask", "missing", "ready", "forget-ask"];
 
 function show(panel) {
   for (const p of panels) $(p).hidden = p !== panel;
@@ -39,6 +39,19 @@ function engineView() {
   return printed.join("\n");
 }
 
+// "3 saved games and your settings", or "" when nothing is kept.
+function describeSaves({ games, settings }) {
+  const parts = [];
+  if (games) parts.push(`${games} saved game${games === 1 ? "" : "s"}`);
+  if (settings) parts.push("your settings");
+  return parts.join(" and ");
+}
+
+async function showSaves() {
+  const kept = describeSaves(await countSaves());
+  $("saves-status").textContent = kept ? `Also kept in this browser, from playing: ${kept}.` : "";
+}
+
 function showStored(stored) {
   if (!REQUIRED.every((name) => stored.includes(name))) {
     show("ask");
@@ -50,6 +63,7 @@ function showStored(stored) {
   fillList($("ready-list"), stored, "found");
   $("engine-view").textContent = engineView();
   show("ready");
+  showSaves();
 }
 
 function showMissing(missing, problem = "") {
@@ -94,10 +108,34 @@ $("pick-zip").addEventListener("change", async (ev) => {
 
 $("try-again").addEventListener("click", () => show("ask"));
 
-$("forget").addEventListener("click", async () => {
+// Forgets the player's files, and their saves and settings too when clearSaves.
+async function forget(clearSaves) {
   progress("Forgetting your files…");
   await forgetFiles(FS);
+  if (clearSaves) {
+    try {
+      await forgetSaves();
+    } catch (err) {
+      showMissing([], `Your files are forgotten, but not your saves yet: ${err.message}.`);
+      return;
+    }
+  }
   show("ask");
+}
+
+// With saves or settings kept, ask whether they go too; with none, just forget the files.
+$("forget").addEventListener("click", async () => {
+  const kept = describeSaves(await countSaves());
+  if (!kept) {
+    await forget(false);
+    return;
+  }
+  $("forget-saves-status").textContent =
+    `This browser also keeps ${kept} from playing. Keep them for next time, or clear them too?`;
+  show("forget-ask");
 });
+$("forget-keep").addEventListener("click", () => forget(false));
+$("forget-all").addEventListener("click", () => forget(true));
+$("forget-cancel").addEventListener("click", () => show("ready"));
 
 showStored(await mountStore(FS));

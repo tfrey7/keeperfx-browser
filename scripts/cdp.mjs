@@ -40,7 +40,13 @@ export class Browser {
     this.nextId = 1;
     this.pending = new Map();
     this.waiters = [];
+    this.handlers = {};
     this.console = [];
+  }
+
+  // Calls fn with every event of this method, e.g. "Fetch.requestPaused".
+  on(method, fn) {
+    this.handlers[method] = fn;
   }
 
   async #connect() {
@@ -67,6 +73,7 @@ export class Browser {
           this.console.push(msg.params.args.map((a) => a.value ?? a.description).join(" "));
         }
         this.waiters = this.waiters.filter((w) => !(w.method === msg.method && (w.ok(msg.params), true)));
+        this.handlers[msg.method]?.(msg.params);
       }
     };
   }

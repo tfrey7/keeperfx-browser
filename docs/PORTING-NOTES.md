@@ -716,3 +716,45 @@ room, a creature from the portal, a fight, and the hand picking up an imp. Also 
   pointer on Eversmile, and samples SDL's own audio context. The old build logs `Cannot load`
   and its mixer stays at 0.000 for all 8 seconds; the new one plays good01.mp3 at peaks up to
   about 0.49 (`docs/proof/speech-levels.txt`, `speech-landview.png`).
+
+---
+
+## 11. Phase 6: saves and settings survive a reload (job 202)
+
+On <https://dungeonkeeper.tfrey7.com/>, from the first level: the sound effects slider in the
+game's own Sound Options turned down (127 → 17), a save made from the game's own Options → Save,
+the page reloaded, and the save is listed in the main menu's **Load Game** and loads back to the
+same dungeon, with the volume still 17. Screenshots `docs/proof/saves-saved.png` (as saved),
+`saves-loadmenu.png` (the load menu after the reload), `saves-loaded.png` (loaded back); the page
+console is `saves-console.txt`. `saves-forget-ask.png` is the new "forget my files" question.
+
+**No engine source was changed, no patch was added and the engine was not rebuilt.** The
+engine's own save and load code worked in the browser from the start: saving wrote
+`save/fx1g0000.sav` (about 53 MB) and `save/settings.toml`, and the load menu read them. The
+fault was the filesystem: `save/` was plain MEMFS, so a reload lost it.
+
+| What stopped it | Where | Fix |
+|---|---|---|
+| A reload lost every save and every setting | the page's filesystem | The engine writes both into its own `FGrp_Save` folder, `./save/` (`config.c:1312`; `game_saves.c` for `fx1g%04d.sav` and the continue file, `config_settings.c:401,529` for `settings.toml`; high scores go there too). `site/js/storage.js` `mountSaves` mounts an IDBFS at `/keeperfx/save` before `main()`, reads it back with `FS.syncfs(true)`, and mounts it with Emscripten's **`autoPersist`**: every file the engine closes after writing is copied to IndexedDB in the same frame, so a save is kept the moment the game says it saved. `engine.js` also syncs on `visibilitychange` (hidden) and `pagehide`. This replaces §5's plan of an `EM_ASM` call patched into `game_saves.c`: `autoPersist` catches the saves, the settings and anything else the engine writes there, with no engine change. |
+| "Forget my files" forgot only the player's files | the files page | When saves or settings are kept, it now asks: **Forget files, keep my saves** or **Forget files and saves**. The files page does not mount the saves (they are large): `countSaves` and `forgetSaves` read and delete IDBFS's own IndexedDB database for that mount, which is named after the mount point, `/keeperfx/save`. If the game's tab still holds it open, the delete waits and finishes when that tab closes, and the page says so. |
+
+Nothing is uploaded: the saves go from the engine's filesystem to this browser's IndexedDB and
+no further (`tests/test_site.py` still refuses any upload call in the page's scripts).
+
+How it was proved: `scripts/prove_saves.mjs` drives it in headless Chrome. Before this landed,
+`--page-from site` answered the page's own files from the checkout while the engine and
+KeeperFX's data came from the live site; after landing, run it without that flag.
+
+```
+node scripts/prove_saves.mjs --url https://dungeonkeeper.tfrey7.com/ --dk "<your Dungeon Keeper folder>" \
+     --debug-port <port> --work <scratch> --shots docs/proof [--page-from site]
+```
+
+Open ends:
+
+- **A save is about 53 MB**, most of it the raw `struct Game`. Eight saves are 400 MB of IndexedDB,
+  within any browser's quota for a site the player uses, but each save takes a moment to copy.
+- `data/` is still not kept, so the engine still rebuilds `colours.col`, `tables.dat` and
+  `alpha.col` on every start (§9).
+- The live site's data load stuck once at "158 of 158 MB" and was fine on a reload, the same fault
+  §10 saw on the local server: `kfxdata.js` wants a timeout and retry per file.

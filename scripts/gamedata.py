@@ -64,16 +64,27 @@ def wanted(rel: str) -> bool:
     return True
 
 
+#: Lua modules keep their own case: `require "classes.Pos3d"` looks for exactly
+#: fxdata/lua/classes/Pos3d.lua, and the web filesystem is case-sensitive.
+KEEP_CASE = "fxdata/lua/"
+
+
+def dest_path(rel: str) -> str:
+    """Where a release file goes: lower case (as the engine opens it), except Lua modules."""
+    lower = rel.lower()
+    return KEEP_CASE + rel[len(KEEP_CASE):] if lower.startswith(KEEP_CASE) else lower
+
+
 def copy_tree(src_root: Path, out: Path, prefix: str = "") -> int:
-    """Copies the wanted files under src_root to out/prefix, with lower-case paths."""
+    """Copies the wanted files under src_root to out/prefix, lower-casing paths (see dest_path)."""
     count = 0
     for src in sorted(src_root.rglob("*")):
         if not src.is_file():
             continue
-        rel = prefix + src.relative_to(src_root).as_posix().lower()
-        if not wanted(rel):
+        rel = prefix + src.relative_to(src_root).as_posix()
+        if not wanted(rel.lower()):
             continue
-        dest = out / rel
+        dest = out / dest_path(rel)
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(src, dest)
         count += 1

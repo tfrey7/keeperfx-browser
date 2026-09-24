@@ -36,6 +36,12 @@ class GameDataTest(unittest.TestCase):
         for rel in drop:
             self.assertFalse(gamedata.wanted(rel), rel)
 
+    def test_lua_modules_keep_their_case(self):
+        """Level scripts failed with "module 'classes.Pos3d' not found" when it was pos3d.lua."""
+        self.assertEqual(gamedata.dest_path("fxdata/lua/classes/Pos3d.lua"), "fxdata/lua/classes/Pos3d.lua")
+        self.assertEqual(gamedata.dest_path("FXDATA/Lua/classes/Pos3d.lua"), "fxdata/lua/classes/Pos3d.lua")
+        self.assertEqual(gamedata.dest_path("Data/TMAPA000.DAT"), "data/tmapa000.dat")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -687,3 +687,26 @@ Open ends, for the phases they belong to:
 - `fxdata/font12.fxfont`/`font16.fxfont` (Unifont, for Asian languages) are not in the 1.4.0 pack;
   English does not use them.
 - Left idle on the main menu the engine plays its attract demo and credits, as the original does.
+
+---
+
+## 10. Phase 5: playing the first level (job 193, in progress)
+
+From the main menu, **Start New Game** opens the land view, a click on Eversmile starts level 1,
+and the level loads and draws: the dungeon heart, the panel, the mentor's text, and the original
+music (`Playing track 3`). The keyboard scrolls (W/A/S/D) and rotates (Delete/Page Down) the view,
+and the game's cursor follows the pointer. Screenshots `docs/proof/level-*.png`.
+
+| What stopped it | Where | Fix |
+|---|---|---|
+| `module 'classes.Pos3d' not found`: every level's global Lua script failed to load | the data layout | `scripts/gamedata.py` lower-cased every path, but Lua's `require` names modules in mixed case and the web filesystem is case-sensitive. Files under `fxdata/lua/` now keep their case (`dest_path`). |
+| In a level the game cursor ran off to the canvas edge and the view scrolled off the map | engine input, patch `0003-inputctrl-follow-pointer-on-emscripten.patch` | In game the engine grabs the mouse and moves its cursor by deltas, recentring the OS pointer whenever it nears the window edge. A browser cannot warp the pointer, so every recentre turned the next motion into a bogus jump. Under `__EMSCRIPTEN__` the motion handler sets the game cursor from the pointer's canvas position instead. |
+| One of 2,155 data fetches never completed once, so the page sat at "158 of 158 MB" | local server | Seen once, not again after a reload. If it recurs, `kfxdata.js` wants a timeout and retry per file. |
+
+Not yet proved (the job ran out of time; filed as follow-ups): imps digging tagged earth, a built
+room, a creature from the portal, a fight, and the hand picking up an imp. Also open:
+
+- **The mentor's spoken briefings are silent**: `play_streamed_sample: Cannot load
+  "./campgns/keeporig_eng/good01.mp3": Audio data is in unknown/unsupported/corrupt format`.
+  SDL3_mixer is built without MP3 (§7, job 2: dr_mp3 clashed with the engine's own copy at
+  link). Music (ogg) and effects (OpenAL) load.

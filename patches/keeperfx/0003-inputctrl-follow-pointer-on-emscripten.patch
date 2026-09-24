@@ -1,0 +1,24 @@
+diff --git a/src/bflib_inputctrl.cpp b/src/bflib_inputctrl.cpp
+index 6197ab2..62be73c 100644
+--- a/src/bflib_inputctrl.cpp
++++ b/src/bflib_inputctrl.cpp
+@@ -327,6 +327,19 @@ static void process_event(const SDL_Event *ev)
+         {
+           break;
+         }
++#ifdef __EMSCRIPTEN__
++        // A browser cannot warp the pointer, so the warp-and-recenter motion below turns every
++        // recenter near the canvas edge into a bogus jump. Follow the pointer where it is.
++        {
++            int game_x = 0, game_y = 0;
++            GetSDLWindowSystem()->GetCursorPosition(&game_x, &game_y);
++            pointerHandler.SetMousePosition(game_x + lbDisplay.MouseWindowX, game_y + lbDisplay.MouseWindowY);
++            mouseDelta.x = 0;
++            mouseDelta.y = 0;
++            mouseControl(MActn_MOUSEMOVE, &mouseDelta);
++            break;
++        }
++#endif
+         static int frac_x = 0, frac_y = 0;
+         static bool s_recenter_pending = false;
+         if (lbMouseGrabbed && lbDisplay.MouseMoveRatio > 0)

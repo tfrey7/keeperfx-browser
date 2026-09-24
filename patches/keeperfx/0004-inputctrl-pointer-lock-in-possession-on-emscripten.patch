@@ -1,0 +1,64 @@
+diff --git a/src/bflib_inputctrl.cpp b/src/bflib_inputctrl.cpp
+index 62be73c..c5558b0 100644
+--- a/src/bflib_inputctrl.cpp
++++ b/src/bflib_inputctrl.cpp
+@@ -328,6 +328,21 @@ static void process_event(const SDL_Event *ev)
+           break;
+         }
+ #ifdef __EMSCRIPTEN__
++        // Under pointer lock (held while possessing, see LbSetMouseGrab) the pointer has no
++        // place, only movement, and possession turns by movement: move the game cursor by it.
++        if (SDL_GetWindowRelativeMouseMode(GetSDLWindowSystem()->GetSDLWindow()))
++        {
++            static float locked_x = 0.0f, locked_y = 0.0f;
++            const float ratio = (lbDisplay.MouseMoveRatio > 0) ? lbDisplay.MouseMoveRatio / 256.0f : 1.0f;
++            locked_x += ev->motion.xrel * ratio;
++            locked_y += ev->motion.yrel * ratio;
++            mouseDelta.x = (long)locked_x;
++            mouseDelta.y = (long)locked_y;
++            locked_x -= mouseDelta.x;
++            locked_y -= mouseDelta.y;
++            mouseControl(MActn_MOUSEMOVE, &mouseDelta);
++            break;
++        }
+         // A browser cannot warp the pointer, so the warp-and-recenter motion below turns every
+         // recenter near the canvas edge into a bogus jump. Follow the pointer where it is.
+         {
+@@ -615,6 +630,11 @@ void LbMouseCheckPosition(TbBool grab_state_changed)
+     }
+ }
+ 
++#ifdef __EMSCRIPTEN__
++/** Whether the local player is possessing a creature, set by LbGrabMouseCheck. */
++static TbBool web_possessing = false;
++#endif
++
+ void LbSetMouseGrab(TbBool grab_mouse)
+ {
+     IWindowSystem* ws = GetSDLWindowSystem();
+@@ -622,7 +642,14 @@ void LbSetMouseGrab(TbBool grab_mouse)
+         return;
+     TbBool previousGrabState = lbMouseGrabbed;
+     lbMouseGrabbed = grab_mouse;
++#ifdef __EMSCRIPTEN__
++    // A browser hands out raw mouse movement only under pointer lock, which is SDL's relative
++    // mode. The page follows the pointer everywhere else, but possession turns by movement, so it
++    // holds the lock while possessing, as the desktop game holds the mouse.
++    ws->SetUseRelativeMouse(use_relative_mouse_mode() || web_possessing);
++#else
+     ws->SetUseRelativeMouse(use_relative_mouse_mode());
++#endif
+     if (lbMouseGrabbed)
+     {
+         LbMouseCheckPosition((previousGrabState != lbMouseGrabbed));
+@@ -685,6 +712,10 @@ void LbGrabMouseCheck(long grab_event)
+     TbBool paused = ((game.operation_flags & GOF_Paused) != 0);
+     TbBool possession_mode = (get_my_player()->view_type == PVT_CreatureContrl) && ((game.view_mode_flags & GNFldD_CreaturePasngr) == 0);
+     TbBool grab_cursor = lbMouseGrabbed;
++#ifdef __EMSCRIPTEN__
++    // view_type is not yet the creature's on entering, and still is on leaving.
++    web_possessing = (grab_event == MG_OnPossessionEnter) || ((grab_event != MG_OnPossessionLeave) && possession_mode);
++#endif
+     // ASSUMPTION: SDL3 auto-suspends/resumes relative mode on focus; grab is driven
+     // by game intent only, never forced off by focus loss.
+     {

@@ -704,7 +704,7 @@ and the game's cursor follows the pointer. Screenshots `docs/proof/level-*.png`.
 |---|---|---|
 | `module 'classes.Pos3d' not found`: every level's global Lua script failed to load | the data layout | `scripts/gamedata.py` lower-cased every path, but Lua's `require` names modules in mixed case and the web filesystem is case-sensitive. Files under `fxdata/lua/` now keep their case (`dest_path`). |
 | In a level the game cursor ran off to the canvas edge and the view scrolled off the map | engine input, patch `0003-inputctrl-follow-pointer-on-emscripten.patch` | In game the engine grabs the mouse and moves its cursor by deltas, recentring the OS pointer whenever it nears the window edge. A browser cannot warp the pointer, so every recentre turned the next motion into a bogus jump. Under `__EMSCRIPTEN__` the motion handler sets the game cursor from the pointer's canvas position instead. |
-| One of 2,155 data fetches never completed once, so the page sat at "158 of 158 MB" | local server | Seen once, not again after a reload. If it recurs, `kfxdata.js` wants a timeout and retry per file. |
+| One of 2,155 data fetches never completed once, so the page sat at "158 of 158 MB" | local server, then the live site | It recurred on the live site. `kfxdata.js` now abandons any download that goes 20 s without a byte (waiting for the headers included) and tries it again, up to 4 times with a doubling pause; server errors (5xx, 429) are retried too, a 404 is not. |
 
 Not yet proved (the job ran out of time; filed as follow-ups): imps digging tagged earth, a built
 room, a creature from the portal, a fight, and the hand picking up an imp. Also open:

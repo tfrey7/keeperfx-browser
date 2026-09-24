@@ -27,7 +27,8 @@ class SiteTest(unittest.TestCase):
     def test_kfx_data_loader_only_downloads(self):
         """kfxdata.js fetches KeeperFX's own data with plain GETs and never sees the player's files."""
         text = (ROOT / "site" / "js" / "kfxdata.js").read_text(encoding="utf-8")
-        for word in ("method", "body", "storage.js", "STORE"):
+        # "body:" would be a request body; reading the answer's stream (res.body) is fine.
+        for word in ("method", "body:", "storage.js", "STORE"):
             self.assertNotIn(word, text)
 
 

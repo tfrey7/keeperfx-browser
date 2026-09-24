@@ -18,8 +18,17 @@ class SiteTest(unittest.TestCase):
         """The page's scripts never send anything: no fetch, XHR, beacon or form post."""
         for script in (ROOT / "site" / "js").glob("*.js"):
             text = script.read_text(encoding="utf-8")
-            for call in ("fetch(", "XMLHttpRequest", "sendBeacon", "WebSocket", "<form"):
+            calls = ["XMLHttpRequest", "sendBeacon", "WebSocket", "<form"]
+            if script.name != "kfxdata.js":
+                calls.append("fetch(")
+            for call in calls:
                 self.assertNotIn(call, text, f"{script.name} must not upload the player's files")
+
+    def test_kfx_data_loader_only_downloads(self):
+        """kfxdata.js fetches KeeperFX's own data with plain GETs and never sees the player's files."""
+        text = (ROOT / "site" / "js" / "kfxdata.js").read_text(encoding="utf-8")
+        for word in ("method", "body", "storage.js", "STORE"):
+            self.assertNotIn(word, text)
 
 
 if __name__ == "__main__":

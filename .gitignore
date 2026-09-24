@@ -9,3 +9,4 @@ __pycache__/
 .env
 site/reader.js
 site/keeperfx.js
+site/keeperfx.js.symbols

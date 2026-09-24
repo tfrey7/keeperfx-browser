@@ -1,0 +1,39 @@
+page: 2155 KeeperFX data files loaded into /keeperfx
+page: 24 of the player's files are linked into /keeperfx; starting main()
+[keeperfx.log] Dungeon Keeper FX ver 1.4.0.0 web (standard release) git:211438f
+[keeperfx.log] LOG CREATED  @ 20:42:32  23-09-2026
+[keeperfx.log] Sync: [0] LbMouseChangeMoveRatio: New ratio 256x256
+[keeperfx.log] Warning: Mods order file "mods/load_order.cfg" doesn't exist or is too small.
+[keeperfx.log] Sync: [0] load_file_configuration: Matchmaking server:
+[keeperfx.log] Sync: [0] LbScreenSetup: Mode 640x480x8 setup succeeded (indexed draw surface)
+[keeperfx.log] Sync: CPU AnonymousCPU type 0 family 4 model 0 stepping 0 features 00000000
+[keeperfx.log] Sync: Build image base: 0
+[keeperfx.log] Sync: Operating System: Linux
+[keeperfx.log] Sync: [0] ensure_present_target: Presenting through SDL renderer: opengles2
+[keeperfx.log] Sync: Moon phase 0.4099
+[keeperfx.log] Loaded ./sound/sound.dat (1068 samples), ./sound/speech_eng.dat (126 samples)
+[keeperfx.log] Sync: [0] LbScreenSetup: Mode 640x480x8 setup succeeded (indexed draw surface)
+[keeperfx.log] Warning: [0] play_smk: Movies are not built in (KFX_NO_MOVIES), skipping ./ldata/intromix.smk
+[keeperfx.log] Error: [0] play_smacker_file: Smacker play error
+[keeperfx.log] LbDataFree: freeing "*PALETTE"...done
+[keeperfx.log] LbDataFree: freeing "*SCRATCH"...done
+[keeperfx.log] Error: [0] LbFileLoadAt: Couldn't read "./data/colours.col", expected size -1, errno 44
+[keeperfx.log] Sync: Recomputing rgb-to-index tables
+[keeperfx.log] Loaded /fxdata/ sprite zips: colored_sprites.zip, creatures.zip, decorative_objects.zip, druid.zip, effects.zip, maiden.zip, natural_features.zip, time_mage.zip, trapsdoors.zip, sprite slots: 3420/16383, animations: 9, icons: 4.
+[keeperfx.log] Error: [0] LbFileLoadAt: Couldn't read "./data/tables.dat", expected size -1, errno 44
+[keeperfx.log] Sync: Recomputing fade tables
+[keeperfx.log] Error: [0] LbFileLoadAt: Couldn't read "./data/alpha.col", expected size -1, errno 44
+[keeperfx.log] Sync: Recomputing alpha tables
+[keeperfx.log] Error: [0] load_unifont_file: Unifont file "./fxdata/font12.fxfont" is too small or doesn't exist
+[keeperfx.log] Error: [0] load_unifont_file: Unifont file "./fxdata/font16.fxfont" is too small or doesn't exist
+[keeperfx.log] Warning: Couldn't load Map Pack "legacy.cfg", no .LIF files could be found.
+[keeperfx.log] Warning: Couldn't load Map Pack "personal.cfg", no .LIF files could be found.
+[keeperfx.log] Warning: Couldn't load Map Pack "modern.cfg", no .LIF files could be found.
+[keeperfx.log] Sync: [0] LbScreenSetup: Mode 640x480x8 setup succeeded (indexed draw surface)
+[keeperfx.log] Sync: [0] get_startup_menu_state: Standard startup state selected
+[keeperfx.log] Sync: Frontend state change from 0 (FeSt_INITIAL) into 1 (FeSt_MAIN_MENU)
+[keeperfx.log] Warning: [0] continue_game_available: Can't read continue game file head
+[keeperfx.log] Warning: Loading campaign file "" failed falling back to default campaign.
+[keeperfx.log] Sync: High scores table bad; creating new one.
+[keeperfx.log] Sync: Frontend state change from 1 (FeSt_MAIN_MENU) into 27 (FeSt_FEOPTIONS)
+[keeperfx.log] Playing track 3: ./music/keeper03.ogg

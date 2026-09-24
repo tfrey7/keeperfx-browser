@@ -62,6 +62,8 @@ LINK = [
     # The page mounts the game folder, then calls main itself.
     "-sMODULARIZE=1", "-sEXPORT_NAME=KeeperFX", "-sINVOKE_RUN=0", "-sEXIT_RUNTIME=0",
     "-sEXPORTED_RUNTIME_METHODS=FS,callMain",
+    # keeperfx.js.symbols: wasm function index -> name, so a stack from the browser can be read.
+    "--emit-symbol-map",
 ]
 
 

@@ -24,7 +24,7 @@ since the plan was written:
 | libpng | Not used. **spng** is used, for custom sprites only. |
 | ffmpeg for movies | True. It is confined to one file (`bflib_fmvids.cpp`), so stubbing it is easy. |
 | (missing) | **OpenAL** (openal-soft) carries all sound effects. Emscripten ships an OpenAL (`-lopenal`). |
-| (missing) | **An optional OpenGL 3.3 renderer that runs on its own thread.** The software renderer is the default, so the web build leaves OpenGL out. |
+| (missing) | **An optional OpenGL 3.3 renderer that runs on its own thread.** The software renderer is the code's default, but the shipped `keeperfx.cfg` picks OpenGL, so the web config sets `RENDERER=SOFTWARE` (§9). |
 | (missing) | **minizip, centijson, astronomy, curl, miniupnpc, natpmp.** The first three are compiled from source; the last three are stubbed with networking. |
 | "Emscripten ports cover SDL2, SDL2_mixer, zlib, libpng" | emsdk 6.0.9 has ports for **`sdl3` (3.4.2)** and `zlib`. It has **no `sdl3_mixer` and no `sdl3_image` port**, so both are built from source with `emcmake`. |
 | Asyncify or set_main_loop: undecided | **Asyncify.** The engine has 10 nested blocking loops (§3.5). A single yield in `RendererPresentFrame` covers them all and leaves upstream's loops untouched. |
@@ -564,7 +564,8 @@ networking, movies and OpenGL stubbed. The proof is the build log and the `.wasm
 | LuaJIT → Lua 5.1.5 + `native/compat/lua_compat.h` (force-included, no upstream edit) | LuaJIT; the header adds `LUA_OK`, `lua_rawlen`, `luaL_setfuncs`, `luaL_newlib` | JIT cannot target wasm | permanent |
 | `bflib_crash.c` POSIX guard: patch `0001-crash-no-posix-handler-on-emscripten.patch` | backtrace/sigaction crash handler, off under `__EMSCRIPTEN__`; the two Win32 `SIGBREAK` branches become `#elif defined(SIGBREAK)` | no execinfo or `SIGBREAK` in Emscripten | permanent |
 | OpenAL Soft MSADPCM tags: `native/compat/al_compat.h` (force-included, no upstream edit) | nothing: defines `AL_FORMAT_{MONO,STEREO}_MSADPCM_SOFT` (0x1302/0x1303), which `bflib_sndlib.cpp` uses only as WAV-reader tags, never passed to OpenAL | Emscripten's OpenAL lacks the extension | permanent |
-| OpenGL: **no switch needed so far** | nothing: the GL renderer and glad are compiled as they are and never selected (software is the default) | fewer upstream edits than `KFX_NO_OPENGL` | — |
+| OpenGL: **no switch needed so far** | nothing: the GL renderer and glad are compiled as they are and never selected, because the web `keeperfx.cfg` says `RENDERER=SOFTWARE` (§9) | fewer upstream edits than `KFX_NO_OPENGL` | — |
+| Web `keeperfx.cfg` (`scripts/gamedata.py`, no upstream edit) | `RENDERER=SOFTWARE`, `RELATIVE_MOUSE_MODE=OFF`, 640x480 windowed `FRONTEND_RES`/`INGAME_RES` | the pinned config asks for OpenGL (a render thread) and relative mouse (pointer lock); see §9 | — |
 
 ### How job 2 built it
 
@@ -624,3 +625,59 @@ networking, movies and OpenGL stubbed. The proof is the build log and the `.wasm
    release at first run until Tim decides.
 9. **"ask for the player's Dungeon Keeper folder"** still stands, but it is only about 14 small
    files (§4.1). The page should also accept just those files, or a zip of them.
+
+---
+
+## 9. Phase 4: booting to the main menu
+
+The real engine now starts in `site/engine.html`, reads the player's own Dungeon Keeper files and
+KeeperFX's own data, and draws its main menu; a click on **Options** opens the Options menu.
+Proved against the served page in headless Chrome with a real Steam copy of Dungeon Keeper,
+read from where it is installed (`scripts/prove_menu.mjs`; screenshots `docs/proof/menu-*.png`,
+page console `docs/proof/menu-console.txt`).
+
+**No engine source was changed and no patch was added.** Every fault was in how the page fed the
+engine or in its configuration:
+
+| What stopped it | Where | Fix |
+|---|---|---|
+| No KeeperFX data: the engine stopped at `resolve_startup_config` (job 2's proof) | the page | `scripts/gamedata.py` lays out KeeperFX's own data from the unpacked `keeperfx_1_4_0_complete.7z`, with the pinned engine's `config/` and `campgns/` over it, in a folder **outside the repo**; `scripts/serve.py --kfx-data <folder>` serves it at `/kfxdata/`; `site/js/kfxdata.js` loads it into `/keeperfx` (MEMFS) before `main()`. Only the original campaign, English text and speech, and no movies: 158 MB, 2,155 files. |
+| `Exception raised!` in `kfxmain` right after the first screen setup | config | The pinned `config/keeperfx.cfg` says `RENDERER=OPENGL` (§3.7 said software was the default: it is the *code's* default, not the shipped config's). `RendererOpenGL::Init` starts a `std::thread`, which throws `system_error` without pthreads. The web config sets `RENDERER=SOFTWARE`. Found by pausing on the throw in Chrome's debugger and reading the stack through the new symbol map. |
+| The game's cursor never moved, so clicks landed nowhere | config | The pinned config says `RELATIVE_MOUSE_MODE=ON`. The engine grabs the mouse at startup, and in relative mode SDL3 asks the browser for pointer lock, which the page never gets, so every motion event is dropped. With it `OFF` the engine uses grab-and-warp, and SDL3's Emscripten backend reports canvas-relative positions, so the game's cursor follows the pointer. |
+| The page said nothing when a data file failed to load | the page | `engine.js` reports it; `kfxdata.js` encodes each path segment (the release has a folder called `new folder`) and `serve.py` decodes it. |
+
+Also new:
+
+- `build_wasm.py` links with `--emit-symbol-map`: `site/keeperfx.js.symbols` (gitignored) maps
+  wasm function indices to names, so a stack from the browser can be read. The wasm is unchanged.
+- The engine presents through SDL's `opengles2` renderer (WebGL). The page cannot read the
+  canvas pixels back, so the proof screenshots through the browser and waits for the engine's own
+  log lines (`Frontend state change ... into 1 (FeSt_MAIN_MENU)`, `into 27 (FeSt_FEOPTIONS)`).
+
+To run it:
+
+```
+py -3.10 scripts/vendor.py && py -3.10 scripts/build_wasm.py   # heavy: takes the lock, -j4
+"C:/Program Files/7-Zip/7z.exe" x keeperfx_1_4_0_complete.7z -o<somewhere outside the repo>/kfx140
+py -3.10 scripts/gamedata.py --release <...>/kfx140 --out <...>/kfxdata
+py -3.10 scripts/build_reader.py
+py -3.10 scripts/serve.py --port <port> --kfx-data <...>/kfxdata
+node scripts/prove_menu.mjs --url http://localhost:<port>/ --dk "<your Dungeon Keeper folder>" \
+     --debug-port <another port> --work <scratch> --shots docs/proof
+```
+
+Open ends, for the phases they belong to:
+
+- **Where KeeperFX's data comes from when published** is still §4.4's open question for Tim. Until
+  then it is served only by the local server, from a folder outside the repo.
+- It loads all 158 MB into memory on every visit (about 40 s from the local Python server). Keeping
+  it in IDBFS, or fetching lazily, is phase 6/7 work.
+- `WindowSystemSDL::IsCursorInWindow` compares SDL's "global" mouse position, which on Emscripten
+  is the page's `clientX/clientY`, with a window it believes is at 0,0. It only matters when the
+  mouse is *not* grabbed (a paused game with `UNLOCK_CURSOR_WHEN_GAME_PAUSED=ON`); expect a
+  platform-layer patch in phase 5.
+- The engine rebuilds `data/colours.col`, `tables.dat` and `alpha.col` on every start, because
+  `data/` is not persisted yet (phase 6).
+- `fxdata/font12.fxfont`/`font16.fxfont` (Unifont, for Asian languages) are not in the 1.4.0 pack;
+  English does not use them.
+- Left idle on the main menu the engine plays its attract demo and credits, as the original does.

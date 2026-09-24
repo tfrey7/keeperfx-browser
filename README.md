@@ -14,6 +14,18 @@ py -3.10 scripts/build_reader.py          # needs the Emscripten SDK
 py -3.10 scripts/serve.py --port 8000
 ```
 
+The real engine boots to its main menu at `/engine.html` once the files page has the player's
+folder. It also needs KeeperFX's own data, which is not in this repo: unpack KeeperFX's
+`keeperfx_1_4_0_complete.7z` outside the repo, then
+
+```
+py -3.10 scripts/vendor.py && py -3.10 scripts/build_wasm.py      # heavy build, see below
+py -3.10 scripts/gamedata.py --release <unpacked release> --out <folder outside the repo>
+py -3.10 scripts/serve.py --port 8000 --kfx-data <that folder>
+```
+
+[docs/PORTING-NOTES.md §9](docs/PORTING-NOTES.md) has the details and the proof script.
+
 ## Test it
 
 ```

@@ -6,6 +6,7 @@
 // the page, so the engine's own startup log can be read even when it stops for want of files.
 
 import { ROOT, mountStore } from "./storage.js";
+import { loadKfxData } from "./kfxdata.js";
 
 const LOG_FILE = `${ROOT}/keeperfx.log`;
 const status = document.getElementById("engine-status");
@@ -56,6 +57,18 @@ try {
 }
 window.kfx = engine; // for the proof driver and for anyone debugging in the console
 
+const MB = 2 ** 20;
+let loadedData;
+try {
+  loadedData = await loadKfxData(engine.FS, ROOT, (done, total) =>
+    setStatus(`Loading KeeperFX's data: ${Math.round(done / MB)} of ${Math.round(total / MB)} MB…`));
+} catch (err) {
+  setStatus(`KeeperFX's data failed to load: ${err.message}`, "bad");
+  throw err;
+}
+show(loadedData === null
+  ? "page: this server has no KeeperFX data (scripts/serve.py --kfx-data); the engine will stop at its config"
+  : `page: ${loadedData} KeeperFX data files loaded into ${ROOT}`);
 const kept = await mountStore(engine.FS);
 engine.FS.chdir(ROOT);
 show(`page: ${kept.length} of the player's files are linked into ${ROOT}; starting main()`);

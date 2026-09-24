@@ -52,6 +52,9 @@ EMSDK_REPO = "https://github.com/emscripten-core/emsdk.git"
 #: README rule: one heavy build machine-wide; a lock younger than this is live.
 HEAVY_LOCK = Path(os.environ.get("KFX_HEAVY_BUILD_LOCK", "G:/Claude Stuff/.heavy-build.lock"))
 LOCK_STALE_SECONDS = 2 * 60 * 60
+#: A build names itself in the lock the moment it creates it, so an empty one older than this was
+#: left by a build killed in that instant, or by something else: nobody holds it.
+EMPTY_LOCK_GRACE_SECONDS = 60
 #: ut-browser's engine-build lock (its scripts/buildlock.py machine_lock): a byte lock the OS holds
 #: for the process that took it. Every KeeperFX build waits for it too, and holds it while it
 #: builds, so neither project's engine build runs alongside the other's.
@@ -176,6 +179,15 @@ def is_our_dead_lock(holder: str, name: str, alive=pid_alive) -> bool:
     return not alive(int(first[3]))
 
 
+def stale_lock_reason(holder: str, age: float) -> str:
+    """Why a heavy-build lock this old, naming this holder, is nobody's any more; "" while live."""
+    if age >= LOCK_STALE_SECONDS:
+        return f"stale ({int(age)}s old)"
+    if not holder and age >= EMPTY_LOCK_GRACE_SECONDS:
+        return f"empty, naming no holder ({int(age)}s old)"
+    return ""
+
+
 def take_lock() -> None:
     who = f"{run_name()} build_wasm pid {os.getpid()}"
     told = False
@@ -188,8 +200,9 @@ def take_lock() -> None:
                 holder = HEAVY_LOCK.read_text(encoding="utf-8").strip()
             except OSError:
                 continue  # released between the two calls
-            if age >= LOCK_STALE_SECONDS:
-                say(f"removing a stale heavy-build lock ({int(age)}s old): {holder}")
+            reason = stale_lock_reason(holder, age)
+            if reason:
+                say(f"removing a heavy-build lock that is {reason}: {holder or '(empty)'}")
                 HEAVY_LOCK.unlink(missing_ok=True)
                 continue
             if is_our_dead_lock(holder, run_name()):

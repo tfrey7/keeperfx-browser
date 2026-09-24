@@ -75,6 +75,18 @@ class LockTest(unittest.TestCase):
         self.assertFalse(build_wasm.is_our_dead_lock(self.HELD, "run-b", alive=lambda pid: False))
         self.assertFalse(build_wasm.is_our_dead_lock("ut-browser job 7", "run-a", alive=lambda pid: False))
 
+    def test_an_empty_lock_past_its_grace_is_nobodys(self):
+        # Job 215: an empty lock from 05:52 held every build for two hours.
+        self.assertTrue(build_wasm.stale_lock_reason("", build_wasm.EMPTY_LOCK_GRACE_SECONDS))
+        self.assertTrue(build_wasm.stale_lock_reason("", 45 * 60))
+
+    def test_an_empty_lock_just_made_is_a_build_still_naming_itself(self):
+        self.assertFalse(build_wasm.stale_lock_reason("", 1))
+
+    def test_a_named_lock_is_live_until_two_hours(self):
+        self.assertFalse(build_wasm.stale_lock_reason(self.HELD, 45 * 60))
+        self.assertTrue(build_wasm.stale_lock_reason(self.HELD, build_wasm.LOCK_STALE_SECONDS))
+
 
 class UtLockTest(unittest.TestCase):
     """KeeperFX's build honours ut-browser's engine-build lock, and holds it the same way."""

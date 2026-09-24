@@ -50,7 +50,7 @@ locks, and a KeeperFX build holds both while it compiles, always taken in this o
 
 1. **KeeperFX's own**: `G:/Claude Stuff/.heavy-build.lock`, a file holding who made it and when,
    removed when the build ends. If it exists and is less than two hours old, another KeeperFX build
-   is running: wait for it.
+   is running: wait for it. An empty one names no holder, so after a minute it is nobody's: clear it.
 2. **ut-browser's**: `G:/Claude Stuff/.ut-browser-cache/build.lock` (or wherever
    `KFX_UT_BUILD_LOCK` names), the lock ut-browser's own `scripts/buildlock.py` takes. It is not a
    file that exists or not: the build locks its first byte, and the operating system lets go when

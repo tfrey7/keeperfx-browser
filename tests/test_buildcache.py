@@ -97,6 +97,17 @@ class PlaceTest(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 buildcache.cache_dir()
 
+    def test_locks_and_cache_share_one_folder_off_g(self):
+        # G: failed on 2026-09-25 and is off limits: nothing a build uses may default to it.
+        defaults = (buildcache.DEFAULT_CACHE, build_wasm.HEAVY_LOCK, build_wasm.UT_LOCK)
+        if not any(k in os.environ for k in ("SHARED_BUILD_CACHE", "KFX_BUILD_CACHE",
+                                               "KFX_HEAVY_BUILD_LOCK", "KFX_UT_BUILD_LOCK")):
+            for path in defaults:
+                self.assertEqual(path.parent, buildcache.SHARED_ROOT, path)
+                self.assertNotEqual(path.drive.upper(), "G:", path)
+        with open(Path(build_wasm.__file__), encoding="utf-8") as f:
+            self.assertNotIn("G:/emsdk", f.read())
+
     def test_the_cache_is_outside_the_checkout(self):
         self.assertFalse(buildcache.DEFAULT_CACHE.resolve().is_relative_to(ROOT))
 

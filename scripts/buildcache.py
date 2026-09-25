@@ -25,9 +25,12 @@ import os
 import shutil
 from pathlib import Path
 
-#: Where the cache lives unless KFX_BUILD_CACHE names another place: beside the heavy-build lock,
-#: on the drive the checkouts are on.
-DEFAULT_CACHE = Path("G:/Claude Stuff/.keeperfx-browser-cache")
+#: The one folder every project's builds on this machine share, locks and caches alike, unless
+#: SHARED_BUILD_CACHE names another. Never G: (it failed on 2026-09-25 and Tim ruled it off
+#: limits): the checkouts live on H:.
+SHARED_ROOT = Path(os.environ.get("SHARED_BUILD_CACHE") or "H:/Claude Stuff/.build-cache")
+#: Where this project's cache lives unless KFX_BUILD_CACHE names another place.
+DEFAULT_CACHE = SHARED_ROOT / "keeperfx-browser"
 
 #: How many finished engines the cache keeps, newest used first.
 BUILDS_KEEP = 6

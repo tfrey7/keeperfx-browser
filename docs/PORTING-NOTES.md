@@ -5,7 +5,7 @@ Job 1 of [PLAN.md](../PLAN.md): a survey, with no engine build. Written 2026-09-
 - **Upstream pinned at** `dkfans/keeperfx` commit
   **`211438fa1c7fad37f867e26c61409c344faf4a0c`** (2026-09-23, "Allow console + commands during
   packetload (#5355)"). Clone it into `vendor/keeperfx` (gitignored) and check out that commit.
-- **Toolchain on this machine:** emsdk at `G:/emsdk`, Emscripten **6.0.9**. This is the same pin
+- **Toolchain on this machine:** emsdk from `$EMSDK` or `./emsdk` (never G:, off limits since it failed on 2026-09-25), Emscripten **6.0.9**. This is the same pin
   ut-browser uses.
 
 Paths below are relative to `vendor/keeperfx` unless they say otherwise.
@@ -104,7 +104,7 @@ Most of the port is build-system work plus four stub switches.
   - Loading is asynchronous: JS calls an exported C function (`LoadGameCallback`) when the file
     arrives, so C never blocks on it.
 
-### 1.3 ut-browser (ours, `G:/Claude Stuff/ut-browser`)
+### 1.3 ut-browser (ours, `H:/Claude Stuff/ut-browser`)
 
 - **Toolchain.**
   - `scripts/toolchain.py` finds emsdk (`$EMSDK`, then `tools.json`, then `G:/emsdk`, ...).
@@ -539,8 +539,8 @@ networking, movies and OpenGL stubbed. The proof is the build log and the `.wasm
      -sEXPORTED_RUNTIME_METHODS=FS,callMain -sINVOKE_RUN=0`
 5. **Build script.** Write `scripts/build_wasm.py`, adapted from ut-browser's `toolchain.py` and
    `buildlock.py`. It:
-   - finds `G:/emsdk` and runs `em++.py`/`emcmake` with the SDK's own python
-   - **takes `G:/Claude Stuff/.heavy-build.lock`** (README rule), holding the job and time;
+   - finds the pinned emsdk and runs `em++.py`/`emcmake` with the SDK's own python
+   - **takes `heavy-build.lock` in the shared build folder** (README rule), holding the job and time;
      refuses if the lock is under two hours old; removes it in `finally`
    - runs `cmake --build ... -j4`, at below-normal priority
    - writes `build/wasm-build.log`
@@ -577,7 +577,7 @@ networking, movies and OpenGL stubbed. The proof is the build log and the `.wasm
 - `scripts/vendor.py` fetches every source at a pinned commit (or sha256 for the Lua tarball and
   astronomy's two files) into `vendor/`, resets it, and applies `patches/keeperfx/*.patch`.
   Patches live outside `vendor/`, which is gitignored.
-- `scripts/build_wasm.py` pins **Emscripten 6.0.9** (`$EMSDK`, `./emsdk` or `G:/emsdk` if it is
+- `scripts/build_wasm.py` pins **Emscripten 6.0.9** (`$EMSDK` or `./emsdk` if it is
   that version, otherwise it installs `./emsdk`). There is no CMake on this machine, so it drives
   `emcc.py`/`em++.py` directly, one process per source, four at once, below-normal priority,
   with its own `EM_CACHE` (SDL3 and the system libraries are built there once).

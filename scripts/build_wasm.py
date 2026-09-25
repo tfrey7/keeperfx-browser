@@ -53,15 +53,16 @@ EMSDK_VERSION = "6.0.9"
 EMSDK_REPO = "https://github.com/emscripten-core/emsdk.git"
 
 #: README rule: one heavy build machine-wide; a lock younger than this is live.
-HEAVY_LOCK = Path(os.environ.get("KFX_HEAVY_BUILD_LOCK", "G:/Claude Stuff/.heavy-build.lock"))
+HEAVY_LOCK = Path(os.environ.get("KFX_HEAVY_BUILD_LOCK") or buildcache.SHARED_ROOT / "heavy-build.lock")
 LOCK_STALE_SECONDS = 2 * 60 * 60
 #: A build's lock names it from the instant it exists (claim_lock), so an empty one older than this
 #: was left by something else: nobody holds it.
 EMPTY_LOCK_GRACE_SECONDS = 60
 #: ut-browser's engine-build lock (its scripts/buildlock.py machine_lock): a byte lock the OS holds
 #: for the process that took it. Every KeeperFX build waits for it too, and holds it while it
-#: builds, so neither project's engine build runs alongside the other's.
-UT_LOCK = Path(os.environ.get("KFX_UT_BUILD_LOCK", "G:/Claude Stuff/.ut-browser-cache/build.lock"))
+#: builds, so neither project's engine build runs alongside the other's. It sits in the shared
+#: folder, where ut-browser's builds are pointed at it too.
+UT_LOCK = Path(os.environ.get("KFX_UT_BUILD_LOCK") or buildcache.SHARED_ROOT / "build.lock")
 #: README rule: -j4 at most.
 MAX_JOBS = 4
 
@@ -111,8 +112,8 @@ def sdk_version(root: Path) -> str | None:
 
 
 def find_emsdk() -> Path:
-    """The pinned SDK: $EMSDK, ./emsdk, or G:/emsdk if it is that version; else install ./emsdk."""
-    for guess in (os.environ.get("EMSDK"), ROOT / "emsdk", "G:/emsdk"):
+    """The pinned SDK: $EMSDK or ./emsdk if it is that version; else install ./emsdk. Never G:."""
+    for guess in (os.environ.get("EMSDK"), ROOT / "emsdk"):
         if guess and sdk_version(Path(guess)) == EMSDK_VERSION:
             return Path(guess)
     local = ROOT / "emsdk"

@@ -46,13 +46,16 @@ py -3.10 -m unittest discover -s tests -v
 ## One heavy build at a time
 
 Only one engine build runs on this machine at a time, KeeperFX's or ut-browser's. There are two
-locks, and a KeeperFX build holds both while it compiles, always taken in this order:
+locks, and a KeeperFX build holds both while it compiles, always taken in this order. Both, and
+the build cache, live in the one folder every project's builds on the machine share:
+`H:/Claude Stuff/.build-cache`, or wherever `SHARED_BUILD_CACHE` names. Never G: (it failed on
+2026-09-25 and is off limits): nothing a build reads, writes or runs is on it.
 
-1. **KeeperFX's own**: `G:/Claude Stuff/.heavy-build.lock`, a file holding who made it and when
+1. **KeeperFX's own**: `heavy-build.lock` in that folder, a file holding who made it and when
    (written first and linked into place, so it is never seen empty),
    removed when the build ends. If it exists and is less than two hours old, another KeeperFX build
    is running: wait for it. An empty one names no holder, so after a minute it is nobody's: clear it.
-2. **ut-browser's**: `G:/Claude Stuff/.ut-browser-cache/build.lock` (or wherever
+2. **The engine-build lock**: `build.lock` in that folder (or wherever
    `KFX_UT_BUILD_LOCK` names), the lock ut-browser's own `scripts/buildlock.py` takes. It is not a
    file that exists or not: the build locks its first byte, and the operating system lets go when
    that process ends, however it ends. `build.lock.who` beside it names the holder. A KeeperFX
@@ -62,7 +65,7 @@ Cap parallelism at `-j4`.
 
 `scripts/build_wasm.py` does all of that itself, logging the time it waits for, takes and releases
 each lock, and keeps what it builds in a cache shared by every
-checkout on the machine: `G:/Claude Stuff/.keeperfx-browser-cache` (or wherever `KFX_BUILD_CACHE`
+checkout on the machine: `keeperfx-browser` in the shared folder (or wherever `KFX_BUILD_CACHE`
 names, but never under `C:/Users`). It holds each compiled object, keyed by its source, flags and
 headers; the last few linked engines; and Emscripten's own cache (SDL3 and the system libraries),
 one per SDK version. So a fresh checkout with nothing changed gets the engine back in seconds

@@ -1,7 +1,7 @@
 """Build the small reader that stands in for the engine: tools/reader/reader.c -> site/reader.js
 and site/reader.wasm (both build output, never committed).
 
-    py -3.10 scripts/build_reader.py [--emsdk G:/emsdk]
+    py -3.10 scripts/build_reader.py [--emsdk C:/emsdk]
 
 A one-file compile, not a heavy engine build, so it takes no build lock. It links Emscripten's
 IDBFS, the browser storage the engine will mount the player's files from.
@@ -24,7 +24,7 @@ def emcc(emsdk: str | None) -> tuple[list[str], dict]:
     The SDK's emcc.exe shim shells out to a bare `python`, which on Windows is often the
     Microsoft Store stub; running emcc.py with the SDK's own Python always works.
     """
-    for base in (emsdk, os.environ.get("EMSDK"), "G:/emsdk", "C:/emsdk", Path.home() / "emsdk"):
+    for base in (emsdk, os.environ.get("EMSDK"), "C:/emsdk", Path.home() / "emsdk"):
         if not base:
             continue
         root = Path(base)

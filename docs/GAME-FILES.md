@@ -44,6 +44,18 @@ reads back what an earlier visit kept and makes the links; `keepFiles` replaces 
 IDBFS was chosen over OPFS because the engine can mount it with no threads: Emscripten's OPFS
 backend needs WasmFS and pthreads, so cross-origin isolation, for no gain here.
 
+## Why there is no one-click download from the Internet Archive
+
+Asked for (job 310) and checked on 2026-09-24; nothing was built. The Internet Archive holds
+full copies, e.g. `dungeon-keeper-ea-classics` (`DungeonKeeperEaClassics.zip`, 259,955,853
+bytes) and `dungeon-keeper-gold.-7z` (`Dungeon Keeper Gold.7z`, 271,870,393 bytes), but its
+download servers send no `Access-Control-Allow-Origin` for those archives (they do for an item's
+cover image). From a page on dungeonkeeper.tfrey7.com, headless Chrome's `fetch` of the cover
+answered 200 and of both archives failed with "Failed to fetch". So the page cannot download
+them itself; the only ways round it are a relay server of our own (ruled out) or the player
+downloading the file and handing it to the `.zip` picker. Those uploads are not EA's, and the
+game is still sold, so the page's rule stands: the player brings their own copy.
+
 ## Proving it
 
 ```

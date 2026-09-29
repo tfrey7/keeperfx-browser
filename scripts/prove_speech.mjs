@@ -9,7 +9,8 @@
 //   node scripts/prove_speech.mjs --url http://localhost:<port>/ --dk "<Dungeon Keeper folder>" \
 //        --debug-port <another port> --work <scratch dir> --shots docs/proof
 //
-// The Dungeon Keeper folder is read where it is and never copied anywhere but the browser.
+// The Dungeon Keeper folder is read where it is and never copied anywhere but the browser. Where
+// it holds the intro movie, Escape skips it, as a player would.
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Browser } from "./cdp.mjs";
@@ -111,7 +112,8 @@ try {
   // music go (the kept files themselves stay), and the engine carries on without its tracks.
   await b.eval(`(() => { const dir = "/keeperfx/music";
     for (const f of kfx.FS.readdir(dir)) if (f.endsWith(".ogg")) kfx.FS.unlink(dir + "/" + f); })()`);
-  await waitForLog(b, "into 1 (FeSt_MAIN_MENU)", 90000);
+  await b.skipIntro(90000);
+  await waitForLog(b, "into 1 (FeSt_MAIN_MENU)", 5000);
   await sleep(2500);
   check(true, "the engine reached its main menu");
 

@@ -28,6 +28,15 @@ class RepoTest(unittest.TestCase):
         out = subprocess.run(["git", "check-ignore", "-q", "vendor/keeperfx/README.md"], cwd=ROOT)
         self.assertEqual(out.returncode, 0, "vendor/ must be gitignored")
 
+    def test_proof_scripts_get_past_the_intro(self):
+        # The intro movie plays for longer than any menu wait: every proof script that waits for
+        # the main menu either skips it with Escape (Browser.skipIntro) or starts with -nointro.
+        for script in sorted((ROOT / "scripts").glob("*.mjs")):
+            text = script.read_text(encoding="utf-8")
+            if "FeSt_MAIN_MENU" in text and script.name != "cdp.mjs":
+                self.assertTrue("skipIntro(" in text or "-nointro" in text,
+                                f"{script.name} waits for the menu without getting past the intro")
+
     def test_porting_notes_record_the_pin(self):
         notes = (ROOT / "docs" / "PORTING-NOTES.md").read_text(encoding="utf-8")
         self.assertRegex(notes, r"`[0-9a-f]{40}`", "the pinned keeperfx commit must be recorded")

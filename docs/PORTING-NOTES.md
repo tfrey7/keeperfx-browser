@@ -938,6 +938,15 @@ the player's prison; it plays through the same `play_smk` and was not driven sep
 node scripts/prove_movies.mjs --url https://dungeonkeeper.tfrey7.com/ --dk "<Dungeon Keeper folder>"      --debug-port <port> --work <scratch> --shots docs/proof [--engine-from site]
 ```
 
+**The other proofs and the intro.** Left alone the intro plays for about 115 s, longer than any
+proof's wait for the main menu. The engine logs nothing while a movie plays, so the Chrome driver's
+`skipIntro` (`scripts/cdp.mjs`) presses Escape every 1.5 s until the engine logs `FeSt_MAIN_MENU`;
+Escape on the main menu does nothing, so a late press is harmless. The proofs that go through Start
+(menu, quit, speech, saves) use it; those that open `engine.html?args=...` themselves start with
+`-nointro` instead. A repo test fails any script that waits for the menu with neither. With the GOG
+folder on the live site, `prove_menu.mjs` and `prove_quit.mjs` reach the menu in about 7 s of engine
+time.
+
 ## 14. Multiplayer: design (job 236)
 
 Status: **parked at the design (Tim, 2026-09-24).** Asked whether to build the copy-paste

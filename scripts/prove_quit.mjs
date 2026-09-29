@@ -7,7 +7,8 @@
 //   node scripts/prove_quit.mjs --url http://localhost:<port>/ --dk "<Dungeon Keeper folder>" \
 //        --debug-port <another port> --work <scratch dir> --shots docs/proof
 //
-// The Dungeon Keeper folder is read where it is and never copied anywhere but the browser.
+// The Dungeon Keeper folder is read where it is and never copied anywhere but the browser. Where
+// it holds the intro movie, Escape skips it, as a player would.
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Browser } from "./cdp.mjs";
@@ -70,7 +71,8 @@ const b = await Browser.launch({ profile: path.join(work, "quit-profile"), port:
 const statusText = () => b.eval(`document.getElementById("engine-status").textContent`);
 const toMenu = async () => {
   await b.waitForEngine(Number(arg("--data-timeout", "120000")));
-  await waitForLog(b, "into 1 (FeSt_MAIN_MENU)", Number(arg("--menu-timeout", "90000")));
+  await b.skipIntro(Number(arg("--menu-timeout", "90000")));
+  await waitForLog(b, "into 1 (FeSt_MAIN_MENU)", 5000);
   await sleep(2500); // the menu fades in
 };
 try {

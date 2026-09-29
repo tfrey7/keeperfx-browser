@@ -132,9 +132,11 @@ const readSetting = (b, name) => b.eval(`(() => {
 const keptSaves = (b) => b.eval(`import("./js/storage.js").then((m) => m.countSaves())`);
 const pageLog = (b, text) => b.eval(`document.getElementById("engine-log").textContent.includes(${JSON.stringify(text)})`);
 
+// Through the intro, if the player's folder has it: Escape skips it, as a player would.
 async function startEngine(b) {
   await b.waitForEngine(Number(arg("--data-timeout", "240000")));
-  await waitForState(b, "FeSt_MAIN_MENU", 120000);
+  await b.skipIntro(120000);
+  await waitForState(b, "FeSt_MAIN_MENU", 5000);
   await sleep(2500); // the menu fades in
 }
 

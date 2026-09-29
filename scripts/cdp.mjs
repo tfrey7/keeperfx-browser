@@ -143,6 +143,27 @@ export class Browser {
     await this.waitFor(running, Math.max(end - Date.now(), 5000));
   }
 
+  // Presses Escape, as a player would, until the engine logs its main menu: the first presses
+  // skip the splash screens, the next the intro movie, which left alone plays for nearly two
+  // minutes and logs nothing. Escape on the main menu does nothing, so a late press is harmless.
+  // Pages opened with ?args=-nointro need none of this. Returns how many presses it took.
+  async skipIntro(timeoutMs, { everyMs = 1500 } = {}) {
+    const atMenu = `document.getElementById("engine-log").textContent.includes("(FeSt_MAIN_MENU)")`;
+    const Escape = { windowsVirtualKeyCode: 27, key: "Escape", code: "Escape" };
+    const end = Date.now() + timeoutMs;
+    let presses = 0;
+    while (!(await this.eval(atMenu))) {
+      if (Date.now() >= end) throw new Error(`the engine never reached its main menu (${presses} Escape presses)`);
+      await sleep(everyMs);
+      if (await this.eval(atMenu)) break;
+      await this.send("Input.dispatchKeyEvent", { type: "rawKeyDown", ...Escape });
+      await sleep(100);
+      await this.send("Input.dispatchKeyEvent", { type: "keyUp", ...Escape });
+      presses++;
+    }
+    return presses;
+  }
+
   async screenshot(path) {
     const { data } = await this.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
     writeFileSync(path, Buffer.from(data, "base64"));

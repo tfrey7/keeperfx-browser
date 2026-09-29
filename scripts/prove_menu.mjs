@@ -7,7 +7,8 @@
 //   node scripts/prove_menu.mjs --url http://localhost:<port>/ --dk "<Dungeon Keeper folder>" \
 //        --debug-port <another port> --work <scratch dir> --shots docs/proof
 //
-// The Dungeon Keeper folder is read where it is and never copied anywhere but the browser.
+// The Dungeon Keeper folder is read where it is and never copied anywhere but the browser. Where
+// it holds the intro movie, Escape skips it, as a player would.
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Browser } from "./cdp.mjs";
@@ -87,8 +88,9 @@ try {
   await b.waitForEngine(Number(arg("--data-timeout", "120000")));
   check(true, "KeeperFX's data loaded and main() started");
 
-  // 3. The main menu: the engine logs each frontend state it enters.
-  await waitForLog(b, "into 1 (FeSt_MAIN_MENU)", Number(arg("--menu-timeout", "90000")));
+  // 3. The main menu, once the intro is skipped: the engine logs each frontend state it enters.
+  await b.skipIntro(Number(arg("--menu-timeout", "90000")));
+  await waitForLog(b, "into 1 (FeSt_MAIN_MENU)", 5000);
   await sleep(2500); // the menu fades in
   await b.screenshot(path.join(shots, "menu-page.png"));
   const menu = await shootCanvas(b, path.join(shots, "menu-main.png"));

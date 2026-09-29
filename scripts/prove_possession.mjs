@@ -7,8 +7,9 @@
 // --engine-from <dir> answers keeperfx.js and keeperfx.wasm from that folder, so an engine build is
 // tried on the live page before it lands. It starts level 1 with the cheat switch, starts a fight,
 // possesses one of the keeper's creatures in it, then moves the mouse right, far past the edge of the
-// page, and shoots the view at the start, halfway and at the end. Exits 1 if the page never held
-// pointer lock while possessing, or still held it after leaving.
+// page, and shoots the view at the start, halfway and at the end. It leaves by right-click, then
+// possesses again and breaks the keeper's heart. Exits 1 if the page never held pointer lock while
+// possessing, or still held it after either way out.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Browser } from "./cdp.mjs";
@@ -86,6 +87,24 @@ const locked = (b) => b.eval(`document.pointerLockElement?.id ?? null`);
 const lockedWithin = (b, holder, timeoutMs) =>
   b.waitFor(`(document.pointerLockElement?.id ?? null) === ${JSON.stringify(holder)}`, timeoutMs)
     .catch(() => {}).then(() => locked(b));
+
+// Possess Creature from the spells tab, then a click in the thick of the fight. A click can land
+// on the heart or on bare floor between creatures, so try a few spots until the canvas holds the
+// lock, then wait out the fade into the creature, which ignores the keyboard. The fade is a fixed
+// 12 game turns, and in a fight the canvas never comes to rest, so this one wait is a fixed pause.
+// A creature killed during the fade is never entered, and the lock goes with it: try again.
+// Returns the element holding the lock.
+async function possess(b) {
+  for (const [x, y] of [[320, 250], [300, 270], [345, 235], [320, 290]]) {
+    await click(b, 64, 169);
+    await click(b, 26, 256);
+    await click(b, x, y);
+    if ((await lockedWithin(b, "canvas", 5000)) === null) continue;
+    await sleep(3000);
+    if ((await locked(b)) !== null) break;
+  }
+  return locked(b);
+}
 
 // --- the engine's state, from its own log ----------------------------------------------------
 
@@ -169,11 +188,10 @@ try {
   await sleep(3000);
   const before = await locked(b);
 
-  // Possess Creature from the spells tab, then a click on a creature in the thick of the fight.
-  await click(b, 64, 169);
-  await click(b, 26, 256);
-  await click(b, 320, 250);
-  const possessing = await lockedWithin(b, "canvas", 5000);
+  const possessing = await possess(b);
+  // The fight can kill the creature, or send it out, while the mouse turns it, and leaving lets
+  // the lock go as it should; so give it the health to outlast the turning.
+  await command(b, "thing.health 20000");
   await shootCanvas(b, path.join(shots, "possess-start.png"));
 
   // Keep moving the mouse right: 60 steps of 20 canvas pixels, ending 900 pixels past the right
@@ -196,10 +214,29 @@ try {
   const after = await lockedWithin(b, null, 5000);
   await shootCanvas(b, path.join(shots, "possess-left.png"));
 
+  // A creature is also left without a right-click: it dies as it is entered, it is scared into
+  // passenger view, or the keeper's heart falls. The last is the one a cheat can make happen on
+  // cue, so possess again and break the heart; the lost level takes the player out of the creature.
+  // The lock goes as the leave starts; the view then pulls back out of the creature over a fixed
+  // 12 turns, and clicks are ignored until it has.
+  await sleep(3000);
+  const again = await possess(b);
+  // A typed character is lost now and then, and the cheat then only reports the heart's health,
+  // so type it again while the lock is held. Once the heart has fallen, typing it again changes
+  // nothing, so a lock the engine never lets go still fails.
+  let heartFell = again;
+  for (let tries = 0; tries < 3 && heartFell !== null; tries++) {
+    await command(b, "player.heart.health 0 0");
+    heartFell = await lockedWithin(b, null, 10000);
+  }
+  await shootCanvas(b, path.join(shots, "possess-heart-fell.png"));
+
   console.log(`pointer lock: before possessing ${before}, possessing ${possessing}, ` +
-    `after turning ${stillLocked}, after leaving ${after}`);
+    `after turning ${stillLocked}, after leaving ${after}, possessing again ${again}, ` +
+    `after the heart fell ${heartFell}`);
   console.log("pointer lock events:", (await b.eval("lockLog")).join("; ") || "none");
-  failed = before !== null || possessing !== "canvas" || stillLocked !== "canvas" || after !== null;
+  failed = before !== null || possessing !== "canvas" || stillLocked !== "canvas" || after !== null ||
+    again !== "canvas" || heartFell !== null;
   console.log(failed ? "FAIL" : "OK");
 } finally {
   writeFileSync(path.join(work, "console.txt"), b.console.join("\n") + "\n");

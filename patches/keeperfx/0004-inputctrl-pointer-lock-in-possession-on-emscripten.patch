@@ -1,8 +1,18 @@
 diff --git a/src/bflib_inputctrl.cpp b/src/bflib_inputctrl.cpp
-index 62be73c..c5558b0 100644
+index 62be73c..8082cf4 100644
 --- a/src/bflib_inputctrl.cpp
 +++ b/src/bflib_inputctrl.cpp
-@@ -328,6 +328,21 @@ static void process_event(const SDL_Event *ev)
+@@ -37,6 +37,9 @@
+ #include "front_input.h"
+ #include "game_legacy.h"
+ #include "keeperfx.hpp"
++#ifdef __EMSCRIPTEN__
++#include "player_instances.h"
++#endif
+ #include <SDL3/SDL.h>
+ #include "kfx/renderer/RendererManager.h" // RendererPhysicalWidth
+ #include "post_inc.h"
+@@ -328,6 +331,21 @@ static void process_event(const SDL_Event *ev)
            break;
          }
  #ifdef __EMSCRIPTEN__
@@ -24,7 +34,28 @@ index 62be73c..c5558b0 100644
          // A browser cannot warp the pointer, so the warp-and-recenter motion below turns every
          // recenter near the canvas edge into a bogus jump. Follow the pointer where it is.
          {
-@@ -615,6 +630,11 @@ void LbMouseCheckPosition(TbBool grab_state_changed)
+@@ -542,6 +560,10 @@ static void process_event(const SDL_Event *ev)
+     }
+ }
+ 
++#ifdef __EMSCRIPTEN__
++static void web_let_go_after_possession(void);
++#endif
++
+ /******************************************************************************/
+ TbBool LbPollInputs(void)
+ {
+@@ -550,6 +572,9 @@ TbBool LbPollInputs(void)
+     while (SDL_PollEvent(&ev)) {
+         process_event(&ev);
+     }
++#ifdef __EMSCRIPTEN__
++    web_let_go_after_possession();
++#endif
+ 
+     return (lbUserQuit < 1);
+ }
+@@ -615,6 +640,11 @@ void LbMouseCheckPosition(TbBool grab_state_changed)
      }
  }
  
@@ -36,7 +67,7 @@ index 62be73c..c5558b0 100644
  void LbSetMouseGrab(TbBool grab_mouse)
  {
      IWindowSystem* ws = GetSDLWindowSystem();
-@@ -622,7 +642,14 @@ void LbSetMouseGrab(TbBool grab_mouse)
+@@ -622,7 +652,14 @@ void LbSetMouseGrab(TbBool grab_mouse)
          return;
      TbBool previousGrabState = lbMouseGrabbed;
      lbMouseGrabbed = grab_mouse;
@@ -51,7 +82,7 @@ index 62be73c..c5558b0 100644
      if (lbMouseGrabbed)
      {
          LbMouseCheckPosition((previousGrabState != lbMouseGrabbed));
-@@ -685,6 +712,10 @@ void LbGrabMouseCheck(long grab_event)
+@@ -685,6 +722,10 @@ void LbGrabMouseCheck(long grab_event)
      TbBool paused = ((game.operation_flags & GOF_Paused) != 0);
      TbBool possession_mode = (get_my_player()->view_type == PVT_CreatureContrl) && ((game.view_mode_flags & GNFldD_CreaturePasngr) == 0);
      TbBool grab_cursor = lbMouseGrabbed;
@@ -62,3 +93,29 @@ index 62be73c..c5558b0 100644
      // ASSUMPTION: SDL3 auto-suspends/resumes relative mode on focus; grab is driven
      // by game intent only, never forced off by focus loss.
      {
+@@ -742,6 +783,25 @@ void LbGrabMouseCheck(long grab_event)
+     LbSetMouseGrab(grab_cursor);
+ }
+ 
++#ifdef __EMSCRIPTEN__
++/**
++ * Lets the pointer lock go once the local player is out of the creature, however they left it.
++ * Only a right-click or Escape (PI_DirctCtLeave) announces MG_OnPossessionLeave; a creature that
++ * dies while it is being entered, one scared into passenger view, or a lost level takes the player
++ * out without a word, and the page would hold the lock in the keeper's view. While the possess
++ * instance (PI_DirctCtrl) runs, the view is not yet the creature's, so that counts as possessing.
++ */
++static void web_let_go_after_possession(void)
++{
++    if (!web_possessing)
++        return;
++    struct PlayerInfo* player = get_my_player();
++    if ((player->view_type == PVT_CreatureContrl) || (player->instance_num == PI_DirctCtrl))
++        return;
++    LbGrabMouseCheck(MG_OnPossessionLeave);
++}
++#endif
++
+ /******************************************************************************/
+ #ifdef __cplusplus
+ }

@@ -16,6 +16,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Browser } from "./cdp.mjs";
+import { waitForLevel, waitForStill } from "./gamewait.mjs";
 
 function arg(name, fallback) {
   const at = process.argv.indexOf(name);
@@ -137,7 +138,7 @@ async function startEngine(b) {
   await b.waitForEngine(Number(arg("--data-timeout", "240000")));
   await b.skipIntro(120000);
   await waitForState(b, "FeSt_MAIN_MENU", 5000);
-  await sleep(2500); // the menu fades in
+  await waitForStill(b, "the main menu to fade in");
 }
 
 // --- the page's own files from a local folder (--page-from) ----------------------------------
@@ -187,10 +188,10 @@ try {
   // 2. Into the first level: Start New Game, then Eversmile on the land view.
   await choose(b, 320, 115, "FeSt_LAND_VIEW", "Start New Game opened the land view");
   await choose(b, 320, 205, "FeSt_INITIAL", "a click on Eversmile started level 1");
-  await sleep(8000);
+  await waitForLevel(b, "level 1");
   await key(b, "Delete"); // turn the view, so the saved camera is not the level's opening one
   await key(b, "Delete");
-  await sleep(20000); // let the imps get about their work
+  await waitForStill(b, "the view to finish turning", { tolerance: 10, calm: 5 });
 
   // 3. A setting: the sound effects slider in the game's own Sound Options, turned down.
   const before = await readSetting(b, "sound_volume");
@@ -207,7 +208,7 @@ try {
   await click(b, 390, 128);
   await type(b, SAVE_NAME);
   await key(b, "Enter");
-  await sleep(1000);
+  await waitForStill(b, "the game to close its menu after saving", { tolerance: 10, calm: 5 });
   await shootCanvas(b, path.join(shots, "saves-saved.png"));
   let kept = { games: 0 };
   for (let i = 0; i < 40 && !(kept.games && kept.settings); i++) {
@@ -226,10 +227,10 @@ try {
 
   // 6. The game's own Load Game menu lists it, and loading it goes back into the dungeon.
   await choose(b, 320, 253, "FeSt_FELOAD_GAME", "Load Game opened the load menu");
-  await sleep(1500);
+  await waitForStill(b, "the load menu to open");
   await shootCanvas(b, path.join(shots, "saves-loadmenu.png"));
   await choose(b, 107, 170, "FeSt_INITIAL", `a click on the save "${SAVE_NAME}" loaded it`);
-  await sleep(6000);
+  await waitForLevel(b, "the saved level 1");
   await shootCanvas(b, path.join(shots, "saves-loaded.png"));
   check(await pageLog(b, "Loaded level 1"), "the engine loaded level 1 from the save");
 } finally {

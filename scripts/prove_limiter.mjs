@@ -13,6 +13,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Browser } from "./cdp.mjs";
+import { waitForLevel } from "./gamewait.mjs";
 
 function arg(name, fallback) {
   const at = process.argv.indexOf(name);
@@ -144,7 +145,7 @@ try {
   await b.send("Page.bringToFront");
   await b.waitForEngine(Number(arg("--data-timeout", "240000")));
   await b.waitFor(`document.getElementById("engine-log").textContent.includes("Started level 3")`, 180000);
-  await sleep(12000);
+  await waitForLevel(b, "level 3");
   // A click on the view counts as the gesture browsers want before they play sound.
   const at = await canvasPoint(b, 320, 250);
   await b.send("Input.dispatchMouseEvent", { type: "mouseMoved", ...at });

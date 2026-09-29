@@ -12,6 +12,7 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Browser } from "./cdp.mjs";
+import { waitForStill } from "./gamewait.mjs";
 
 function arg(name, fallback) {
   const at = process.argv.indexOf(name);
@@ -91,7 +92,7 @@ try {
   // 3. The main menu, once the intro is skipped: the engine logs each frontend state it enters.
   await b.skipIntro(Number(arg("--menu-timeout", "90000")));
   await waitForLog(b, "into 1 (FeSt_MAIN_MENU)", 5000);
-  await sleep(2500); // the menu fades in
+  await waitForStill(b, "the main menu to fade in");
   await b.screenshot(path.join(shots, "menu-page.png"));
   const menu = await shootCanvas(b, path.join(shots, "menu-main.png"));
   check(true, "the engine entered its main menu (FeSt_MAIN_MENU) and it is on the canvas");
@@ -100,7 +101,7 @@ try {
   const [cx, cy] = arg("--click", "320,345").split(",").map(Number);
   await clickCanvas(b, cx, cy);
   await waitForLog(b, "into 27 (FeSt_FEOPTIONS)", 15000);
-  await sleep(1500);
+  await waitForStill(b, "the options menu to open");
   const options = await shootCanvas(b, path.join(shots, "menu-options.png"));
   check(!options.equals(menu), `a click on Options at ${cx},${cy} opened the options menu (FeSt_FEOPTIONS)`);
 } finally {

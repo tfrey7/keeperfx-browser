@@ -12,6 +12,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Browser } from "./cdp.mjs";
+import { lastState, waitForLevel, waitForState, waitForStill } from "./gamewait.mjs";
 
 function arg(name, fallback) {
   const at = process.argv.indexOf(name);
@@ -80,19 +81,15 @@ async function shootCanvas(b, file) {
 
 const locked = (b) => b.eval(`document.pointerLockElement?.id ?? null`);
 
+// Waits up to timeoutMs for the page to hold (or let go of) the pointer lock, then says who holds
+// it: a lock that never comes is what the proof reports, so running out of time is not an error.
+const lockedWithin = (b, holder, timeoutMs) =>
+  b.waitFor(`(document.pointerLockElement?.id ?? null) === ${JSON.stringify(holder)}`, timeoutMs)
+    .catch(() => {}).then(() => locked(b));
+
 // --- the engine's state, from its own log ----------------------------------------------------
 
-const state = (b) => b.eval(`(document.getElementById("engine-log").textContent
-  .match(/state change from \\d+ \\(\\w+\\) into \\d+ \\(\\w+\\)/g) || [""]).slice(-1)[0].replace(/.* into /, "")`);
-
-async function waitForState(b, name, timeoutMs) {
-  const end = Date.now() + timeoutMs;
-  while (Date.now() < end) {
-    if ((await state(b)).includes(name)) return;
-    await sleep(250);
-  }
-  throw new Error(`the engine never entered ${name} (last: ${await state(b)})`);
-}
+const state = lastState;
 
 async function choose(b, x, y, into) {
   for (let tries = 0; tries < 3; tries++) {
@@ -158,13 +155,13 @@ try {
   await b.send("Page.bringToFront");
   await b.waitForEngine(Number(arg("--data-timeout", "240000")));
   await waitForState(b, "FeSt_MAIN_MENU", 120000);
-  await sleep(2500);
+  await waitForStill(b, "the main menu to fade in");
 
   // Level 1, and a fight in the middle of the view, as measure_fps.mjs makes it: the keeper's
   // creatures and heroes, 25 each, which crowd together, so a click there lands on one.
   await choose(b, 320, 115, "FeSt_LAND_VIEW");
   await choose(b, 320, 205, "FeSt_INITIAL");
-  await sleep(15000);
+  await waitForLevel(b, "level 1");
   await move(b, 320, 250);
   await command(b, "create.creature 250 4 25");
   await command(b, "create.creature 249 4 25 PLAYER_GOOD");
@@ -176,8 +173,7 @@ try {
   await click(b, 64, 169);
   await click(b, 26, 256);
   await click(b, 320, 250);
-  await sleep(3000);
-  const possessing = await locked(b);
+  const possessing = await lockedWithin(b, "canvas", 5000);
   await shootCanvas(b, path.join(shots, "possess-start.png"));
 
   // Keep moving the mouse right: 60 steps of 20 canvas pixels, ending 900 pixels past the right
@@ -197,8 +193,7 @@ try {
   await b.send("Input.dispatchMouseEvent", { type: "mousePressed", x: 10, y: 10, button: "right", clickCount: 1 });
   await sleep(120);
   await b.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: 10, y: 10, button: "right", clickCount: 1 });
-  await sleep(3000);
-  const after = await locked(b);
+  const after = await lockedWithin(b, null, 5000);
   await shootCanvas(b, path.join(shots, "possess-left.png"));
 
   console.log(`pointer lock: before possessing ${before}, possessing ${possessing}, ` +

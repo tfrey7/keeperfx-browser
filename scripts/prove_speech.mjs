@@ -14,6 +14,7 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Browser } from "./cdp.mjs";
+import { waitForStill } from "./gamewait.mjs";
 
 function arg(name, fallback) {
   const at = process.argv.indexOf(name);
@@ -114,13 +115,13 @@ try {
     for (const f of kfx.FS.readdir(dir)) if (f.endsWith(".ogg")) kfx.FS.unlink(dir + "/" + f); })()`);
   await b.skipIntro(90000);
   await waitForLog(b, "into 1 (FeSt_MAIN_MENU)", 5000);
-  await sleep(2500);
+  await waitForStill(b, "the main menu to fade in");
   check(true, "the engine reached its main menu");
 
   // 2. Start New Game opens the land view; the pointer on Eversmile plays its briefing.
   await clickCanvas(b, 320, 115);
   await waitForLog(b, "(FeSt_LAND_VIEW)", 30000);
-  await sleep(4000); // the land view zooms in before its lands answer the pointer
+  await waitForStill(b, "the land view to zoom in"); // before it, its lands do not answer the pointer
   await pointAt(b, 318, 208);
   await waitForLog(b, "good01.mp3", 30000);
 

@@ -12,6 +12,7 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Browser } from "./cdp.mjs";
+import { waitForStill } from "./gamewait.mjs";
 
 function arg(name, fallback) {
   const at = process.argv.indexOf(name);
@@ -73,7 +74,7 @@ const toMenu = async () => {
   await b.waitForEngine(Number(arg("--data-timeout", "120000")));
   await b.skipIntro(Number(arg("--menu-timeout", "90000")));
   await waitForLog(b, "into 1 (FeSt_MAIN_MENU)", 5000);
-  await sleep(2500); // the menu fades in
+  await waitForStill(b, "the main menu to fade in");
 };
 try {
   // 1. The player's files, then the engine's main menu.

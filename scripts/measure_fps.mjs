@@ -21,6 +21,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { Browser } from "./cdp.mjs";
+import { waitForLevel, waitForStill } from "./gamewait.mjs";
 
 function arg(name, fallback) {
   const at = process.argv.indexOf(name);
@@ -225,12 +226,12 @@ try {
   await opened;
   await b.waitForEngine(Number(arg("--data-timeout", "240000")));
   await waitForState(b, "FeSt_MAIN_MENU", 120000);
-  await sleep(2500);
+  await waitForStill(b, "the main menu to fade in");
 
   // Into the first level: Start New Game, then Eversmile on the land view.
   await choose(b, 320, 115, "FeSt_LAND_VIEW");
   await choose(b, 320, 205, "FeSt_INITIAL");
-  await sleep(20000);
+  await waitForLevel(b, "level 1");
   await measure(b, "quiet");
 
   // A fight in the middle of the view: the keeper's creatures and heroes, 25 each, level 4.

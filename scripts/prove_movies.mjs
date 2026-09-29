@@ -19,6 +19,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Browser } from "./cdp.mjs";
+import { waitForLevel, waitForStill } from "./gamewait.mjs";
 
 function arg(name, fallback) {
   const at = process.argv.indexOf(name);
@@ -218,7 +219,7 @@ try {
     await key(b, "Escape");
     await waitForState(b, "FeSt_MAIN_MENU", 8000);
     check(true, `Escape skipped the intro: the main menu ${((Date.now() - pressed) / 1000).toFixed(1)} s later`);
-    await sleep(2500);
+    await waitForStill(b, "the main menu to fade in");
     await shootCanvas(b, "movie-intro-skipped.png");
   }
 
@@ -228,10 +229,10 @@ try {
   // it on a level (front_landview.c), nineteen times, and its flag starts level 20.
   await startEngine(b, "?args=-alex%20-nointro");
   await waitForState(b, "FeSt_MAIN_MENU", 120000);
-  await sleep(2500);
+  await waitForStill(b, "the main menu to fade in");
   await mouseClick(b, await canvasPoint(b, 320, 115)); // Start New Game
   await waitForState(b, "FeSt_LAND_VIEW", 30000);
-  await sleep(6000); // the land view zooms in before it answers
+  await waitForStill(b, "the land view to zoom in"); // before it, it does not answer
   for (let i = 0; i < 19; i++) {
     await ctrlKey(b, "F10", 121);
     await sleep(1800); // each move reloads the map; a key pressed meanwhile is lost
@@ -240,7 +241,7 @@ try {
   await shootCanvas(b, "movie-land-level20.png");
   await mouseClick(b, await canvasPoint(b, 233, 160)); // level 20's flag, where the view settles
   await b.waitFor(`document.getElementById("engine-log").textContent.includes("Started level 20")`, 120000);
-  await sleep(12000);
+  await waitForLevel(b, "level 20");
   // The tick under the mentor's briefing closes it; F12 opens the cheat menu where the pointer is,
   // and its "Win level" line answers a left click.
   await mouseClick(b, await canvasPoint(b, 182, 460));
@@ -268,7 +269,7 @@ try {
   await mouseClick(b, await canvasPoint(b, 320, 240));
   await waitForState(b, "FeSt_LEVEL_STATS", 8000);
   check(true, `a click skipped the outro to the statistics ${((Date.now() - clicked) / 1000).toFixed(1)} s later`);
-  await sleep(2000);
+  await waitForStill(b, "the statistics to fade in");
   await shootCanvas(b, "movie-outro-skipped.png");
   const errors = (await b.eval(`document.getElementById("engine-log").textContent`))
     .split("\n").filter((l) => /smacker|play_smk|Movies are not|Error playing/i.test(l));

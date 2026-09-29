@@ -133,8 +133,7 @@ const keptSaves = (b) => b.eval(`import("./js/storage.js").then((m) => m.countSa
 const pageLog = (b, text) => b.eval(`document.getElementById("engine-log").textContent.includes(${JSON.stringify(text)})`);
 
 async function startEngine(b) {
-  await b.waitFor(`document.getElementById("engine-status").textContent.includes("running")`,
-    Number(arg("--data-timeout", "240000")));
+  await b.waitForEngine(Number(arg("--data-timeout", "240000")));
   await waitForState(b, "FeSt_MAIN_MENU", 120000);
   await sleep(2500); // the menu fades in
 }

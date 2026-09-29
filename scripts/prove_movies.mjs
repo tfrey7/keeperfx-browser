@@ -168,8 +168,7 @@ async function startEngine(b, query) {
   const opened = b.once("Page.loadEventFired");
   await b.eval(`location.href = new URL("engine.html${query}", location.href).href`);
   await opened;
-  await b.waitFor(`document.getElementById("engine-status").textContent.includes("running")`,
-    Number(arg("--data-timeout", "240000")));
+  await b.waitForEngine(Number(arg("--data-timeout", "240000")));
 }
 
 // --- the run ---------------------------------------------------------------------------------
@@ -196,6 +195,7 @@ try {
     const opened = b.once("Page.loadEventFired");
     await mouseClick(b, start);
     await opened;
+    // Start's own click is the one browsers want before they play sound: no panel asks for another.
     await b.waitFor(`document.getElementById("engine-status").textContent.includes("running")`,
       Number(arg("--data-timeout", "240000")));
     const kept = await b.eval(`["intromix", "outromix", "drag"].filter((m) => kfx.FS.analyzePath("/keeperfx/ldata/" + m + ".smk").exists)`);

@@ -106,8 +106,7 @@ try {
   const opened = b.once("Page.loadEventFired");
   await b.eval(`document.getElementById("start").click()`);
   await opened;
-  await b.waitFor(`document.getElementById("engine-status").textContent.includes("running")`,
-    Number(arg("--data-timeout", "120000")));
+  await b.waitForEngine(Number(arg("--data-timeout", "120000")));
   // No music, so what reaches the speakers in the level is the briefing: the page's links to the
   // music go (the kept files themselves stay), and the engine carries on without its tracks.
   await b.eval(`(() => { const dir = "/keeperfx/music";

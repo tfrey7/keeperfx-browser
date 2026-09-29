@@ -152,12 +152,11 @@ try {
   await b.setFiles("#pick-folder", [path.resolve(dk)]);
   await b.waitFor(`document.body.dataset.state === "ready"`, 60000);
   const opened = b.once("Page.loadEventFired");
-  await b.eval(`location.href = new URL("engine.html?args=-alex", location.href).href`);
+  await b.eval(`location.href = new URL("engine.html?args=-alex -nointro", location.href).href`);
   await opened;
   // The browser also refuses the lock to a page whose view does not have focus.
   await b.send("Page.bringToFront");
-  await b.waitFor(`document.getElementById("engine-status").textContent.includes("running")`,
-    Number(arg("--data-timeout", "240000")));
+  await b.waitForEngine(Number(arg("--data-timeout", "240000")));
   await waitForState(b, "FeSt_MAIN_MENU", 120000);
   await sleep(2500);
 

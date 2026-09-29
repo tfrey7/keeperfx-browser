@@ -69,8 +69,7 @@ mkdirSync(shots, { recursive: true });
 const b = await Browser.launch({ profile: path.join(work, "quit-profile"), port: debugPort, height: 900 });
 const statusText = () => b.eval(`document.getElementById("engine-status").textContent`);
 const toMenu = async () => {
-  await b.waitFor(`document.getElementById("engine-status").textContent.includes("running")`,
-    Number(arg("--data-timeout", "120000")));
+  await b.waitForEngine(Number(arg("--data-timeout", "120000")));
   await waitForLog(b, "into 1 (FeSt_MAIN_MENU)", Number(arg("--menu-timeout", "90000")));
   await sleep(2500); // the menu fades in
 };

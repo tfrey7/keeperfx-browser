@@ -1,1 +1,10 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.wasm binary
+*.zip binary
+*.smk binary
+*.mp4 binary
 *.patch text eol=lf

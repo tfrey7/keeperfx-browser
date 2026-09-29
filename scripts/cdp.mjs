@@ -121,6 +121,28 @@ export class Browser {
     await this.eval(`document.querySelector(${JSON.stringify(selector)}).click()`);
   }
 
+  // A real mouse click in the middle of an element, as a player's. Unlike element.click() from
+  // a script, it counts as the click browsers want before they let a page play sound.
+  async mouseClick(selector) {
+    const at = await this.eval(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    await this.send("Input.dispatchMouseEvent", { type: "mouseMoved", ...at });
+    await this.send("Input.dispatchMouseEvent", { type: "mousePressed", ...at, button: "left", clickCount: 1 });
+    await this.send("Input.dispatchMouseEvent", { type: "mouseReleased", ...at, button: "left", clickCount: 1 });
+  }
+
+  // Waits on the game page until its engine is running. A page reached without a player's click
+  // (opened directly, or through a script's click on Start) holds the engine at its "click to
+  // play" panel; this presses the panel's button as a player would, and then waits on.
+  async waitForEngine(timeoutMs) {
+    const running = `document.getElementById("engine-status").textContent.includes("running")`;
+    const asking = `!document.getElementById("click-to-play").hidden`;
+    const end = Date.now() + timeoutMs;
+    await this.waitFor(`${running} || ${asking}`, timeoutMs);
+    if (await this.eval(asking)) await this.mouseClick("#play");
+    await this.waitFor(running, Math.max(end - Date.now(), 5000));
+  }
+
   async screenshot(path) {
     const { data } = await this.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
     writeFileSync(path, Buffer.from(data, "base64"));

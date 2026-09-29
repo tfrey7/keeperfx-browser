@@ -139,11 +139,10 @@ try {
   await b.setFiles("#pick-folder", [path.resolve(dk)]);
   await b.waitFor(`document.body.dataset.state === "ready"`, 60000);
   const opened = b.once("Page.loadEventFired");
-  await b.eval(`location.href = new URL("engine.html?args=-alex -level 3", location.href).href`);
+  await b.eval(`location.href = new URL("engine.html?args=-alex -nointro -level 3", location.href).href`);
   await opened;
   await b.send("Page.bringToFront");
-  await b.waitFor(`document.getElementById("engine-status").textContent.includes("running")`,
-    Number(arg("--data-timeout", "240000")));
+  await b.waitForEngine(Number(arg("--data-timeout", "240000")));
   await b.waitFor(`document.getElementById("engine-log").textContent.includes("Started level 3")`, 180000);
   await sleep(12000);
   // A click on the view counts as the gesture browsers want before they play sound.

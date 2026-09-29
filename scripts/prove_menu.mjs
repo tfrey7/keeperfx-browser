@@ -84,8 +84,7 @@ try {
   await b.eval(`document.getElementById("start").click()`);
   await opened;
   // 158 MB of KeeperFX's data: a live site over the internet takes longer than a local server.
-  await b.waitFor(`document.getElementById("engine-status").textContent.includes("running")`,
-    Number(arg("--data-timeout", "120000")));
+  await b.waitForEngine(Number(arg("--data-timeout", "120000")));
   check(true, "KeeperFX's data loaded and main() started");
 
   // 3. The main menu: the engine logs each frontend state it enters.

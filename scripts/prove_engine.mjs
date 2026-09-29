@@ -23,6 +23,9 @@ const browser = await Browser.launch({ profile: path.join(work, "engine-profile"
 let failed = false;
 try {
   await browser.goto(url);
+  // Opened directly, the page holds the engine at its "click to play" panel until it is pressed.
+  // An engine that never starts is reported below, with the page console, rather than thrown here.
+  await browser.waitForEngine(60000).catch(() => {});
   // The engine's own log lines are mirrored to the console with this prefix.
   const fromEngine = () => browser.console.filter((l) => l.startsWith("[keeperfx.log]"));
   const end = Date.now() + 60000;

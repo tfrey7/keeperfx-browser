@@ -62,6 +62,12 @@ export class Browser {
     if (!page) throw new Error("Chrome did not open a page");
     this.ws = new WebSocket(page.webSocketDebuggerUrl);
     await new Promise((ok, fail) => { this.ws.onopen = ok; this.ws.onerror = fail; });
+    // Chrome going away fails whatever was still waiting on it, rather than leaving it waiting
+    // for ever: Browser.close often drops the socket before its answer arrives.
+    this.ws.onclose = () => {
+      for (const { fail } of this.pending.values()) fail(new Error("Chrome closed the connection"));
+      this.pending.clear();
+    };
     this.ws.onmessage = (ev) => {
       const msg = JSON.parse(ev.data);
       if (msg.id && this.pending.has(msg.id)) {
@@ -79,6 +85,7 @@ export class Browser {
   }
 
   send(method, params = {}) {
+    if (this.ws.readyState !== WebSocket.OPEN) return Promise.reject(new Error("Chrome closed the connection"));
     const id = this.nextId++;
     this.ws.send(JSON.stringify({ id, method, params }));
     return new Promise((ok, fail) => this.pending.set(id, { ok, fail }));
@@ -169,10 +176,15 @@ export class Browser {
     writeFileSync(path, Buffer.from(data, "base64"));
   }
 
+  // Closes Chrome and waits until it has exited, ending it if it will not go within a few
+  // seconds: only then does it let go of its profile folder.
   async close() {
-    try { await this.send("Browser.close"); } catch { /* already gone */ }
+    const running = () => this.proc.exitCode === null && this.proc.signalCode === null;
+    const exited = running() ? new Promise((ok) => this.proc.once("exit", ok)) : Promise.resolve();
+    await Promise.race([this.send("Browser.close").catch(() => { /* already gone */ }), sleep(2000)]);
     this.ws?.close();
-    await sleep(300);
-    if (this.proc.exitCode === null) this.proc.kill();
+    await Promise.race([exited, sleep(3000)]);
+    if (running()) this.proc.kill();
+    await exited;
   }
 }

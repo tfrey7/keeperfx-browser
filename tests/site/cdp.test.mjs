@@ -70,9 +70,7 @@ test("a game page opened directly is started, with sound, by pressing its panel"
     await b.waitForEngine(10000);
     assert.equal(await b.eval("wasHeld"), true, "the page held its sound back until a click");
   } finally {
-    const gone = b.proc.exitCode === null && new Promise((ok) => b.proc.once("exit", ok));
-    await b.close();
-    await gone; // Chrome lets go of its profile only once it has exited
-    rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+    await b.close(); // Chrome lets go of its profile once it has exited
+    rmSync(profile, { recursive: true, force: true });
   }
 });
